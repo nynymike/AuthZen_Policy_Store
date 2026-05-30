@@ -106,8 +106,8 @@ Manifest:
 A policy store bundles the artifacts a PDP needs to evaluate authorization requests against a known schema and configuration baseline:
 
 * Policy engine declaration in `metadata.json`
-* Schema under `schema/`
 * Policies (one policy document per file under `policies/`)
+* Optional schema (`schema/`)
 * Optional policy templates (`templates/`)
 * Optional default entities (`entities/`)
 * Optional trusted issuer configuration (`trusted-issuers/`)
@@ -128,10 +128,10 @@ The root of a policy store (directory or archive) is referred to as the **policy
 policy-store-root/
 ├── metadata.json
 ├── manifest.json
-├── schema/
-│   └── (schema files; format defined by policy_engine)
 ├── policies/
 │   └── (one policy document per file)
+├── schema/             (optional)
+│   └── (schema files; format defined by policy_engine)
 ├── templates/          (optional)
 │   └── (one template document per file)
 ├── entities/           (optional)
@@ -149,13 +149,13 @@ policy-store-root/
 `manifest.json`:
 : REQUIRED at the policy store root. Contains the file inventory as defined in Manifest ({{manifest}}).
 
-`schema/`:
-: REQUIRED directory. Contains one or more schema artifacts required by the declared policy engine. File names and formats are defined by the policy engine documentation.
-
 `policies/`:
 : REQUIRED directory. Contains one or more policy files. Each file MUST contain exactly one policy document in a format accepted by the declared policy engine.
 
 ## Optional Directories
+
+`schema/`:
+: OPTIONAL. When present, contains one or more schema artifacts for the declared policy engine. File names and formats are defined by the policy engine documentation. PDPs that require schema for evaluation MUST reject a policy store that omits `schema/` when schema is required for the policies it contains.
 
 `templates/`:
 : OPTIONAL. Contains policy template documents when supported by the policy engine. Each file MUST contain exactly one template document.
@@ -215,7 +215,7 @@ Files under `trusted-issuers/` MUST:
 
 ## Schema Files
 
-The `schema/` directory MUST contain all schema artifacts required by the declared policy engine. Layout and file naming within `schema/` are defined by the policy engine. A conforming policy store MUST NOT omit schema required for evaluation of the policies it contains.
+When the `schema/` directory is present, it MUST contain all schema artifacts required by the declared policy engine for the policies in that store. Layout and file naming within `schema/` are defined by the policy engine. A policy store MAY omit `schema/` entirely; in that case, the PDP MAY obtain schema from another source or operate without packaged schema, according to policy engine capabilities.
 
 # Metadata {#metadata}
 
@@ -400,7 +400,7 @@ PDPs and tools that load policy stores SHOULD perform the following steps:
 3. Parse and validate `metadata.json` and `manifest.json`.
 4. Confirm the implementation supports the declared `policy_engine` and `policy_engine_version`, or reject the store.
 5. If checksums are present, verify file integrity.
-6. Load `schema/`, then policies and optional templates, entities, and trusted issuers according to policy engine rules.
+6. If present, load `schema/`; then load policies and optional templates, entities, and trusted issuers according to policy engine rules.
 7. Verify policy engine-specific requirements (such as unique policy identifiers).
 
 Failure at any REQUIRED validation step SHOULD result in rejecting the policy store for evaluation.
