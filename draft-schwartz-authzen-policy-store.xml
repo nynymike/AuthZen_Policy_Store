@@ -14,7 +14,7 @@
 
 <rfc ipr="none" docName="draft-schwartz-authzen-policy-store" category="std" consensus="true" submissionType="IETF" xml:lang="en">
   <front>
-    <title abbrev="policy-store">Cedar Policy Store Format</title>
+    <title abbrev="policy-store">AuthZEN Policy Store Format</title>
 
     <author initials="M." surname="Schwartz" fullname="Michael Schwartz" role="editor">
       <organization>Independent Contributor</organization>
@@ -33,14 +33,14 @@
 
     
     <workgroup>OpenID AuthZEN</workgroup>
-    <keyword>Authorization</keyword> <keyword>Cedar</keyword> <keyword>Policy Store</keyword> <keyword>PDP</keyword> <keyword>AuthZEN</keyword>
+    <keyword>Authorization</keyword> <keyword>Policy Store</keyword> <keyword>PDP</keyword> <keyword>AuthZEN</keyword> <keyword>CJAR</keyword>
 
     <abstract>
 
 
 <?line 63?>
 
-<t>This document defines the Cedar Policy Store Format, a structured packaging format for co-locating Cedar policies, schema, default entities, trusted token issuers, and related metadata required for authorization evaluation. The format supports a directory structure for development and version control, and a compressed archive format (<spanx style="verb">.cjar</spanx>) for distribution and deployment. Policy stores packaged in this format improve interoperability among Policy Decision Points (PDPs), tooling, and the OpenID AuthZEN ecosystem.</t>
+<t>This document defines the AuthZEN Policy Store Format, a Policy Decision Point (PDP) neutral packaging format for co-locating authorization policies, schema, default entities, trusted token issuers, and related metadata required for evaluation. The format supports a directory structure for development and version control, and a compressed archive format (<spanx style="verb">.cjar</spanx>, Constraint JAR) for distribution and deployment. Policy stores packaged in this format improve interoperability among PDPs, tooling, and the OpenID AuthZEN ecosystem regardless of underlying policy language or engine.</t>
 
 
 
@@ -57,11 +57,11 @@
 
 <section anchor="introduction"><name>Introduction</name>
 
-<t>Cedar is a policy language for fine-grained authorization. Cedar does not prescribe how policies, schema, and supporting configuration are stored or versioned together. In practice, policies are written against a specific schema and evaluated with a consistent set of default entities and trusted token issuers. Without a standard packaging format, organizations adopt ad hoc conventions, which impedes portability, auditability, and interoperability among PDPs and third-party tools.</t>
+<t>Policy Decision Points (PDPs) evaluate authorization requests using policies, schema, and supporting configuration. PDP implementations — including engines such as Cedar (<xref target="CEDAR"/>) and Cerbos (<xref target="CERBOS"/>) — do not today share a common way to package and version those artifacts together. In practice, policies are written against a specific schema and evaluated with a consistent set of default entities and trusted token issuers. Without a standard packaging format, organizations adopt ad hoc conventions, which impedes portability, auditability, and interoperability among PDPs and third-party tools.</t>
 
-<t>The OpenID AuthZEN Working Group defines protocols and patterns for authorization interoperability, including the Authorization API (<xref target="AUTHZEN-API"/>). This specification complements AuthZEN by defining a portable, self-contained <strong>policy store</strong> format that PDPs and tooling can load, validate, and exchange without proprietary layout conventions.</t>
+<t>The OpenID AuthZEN Working Group defines protocols and patterns for authorization interoperability, including the Authorization API (<xref target="AUTHZEN-API"/>). This specification complements AuthZEN by defining a portable, PDP neutral, self-contained <strong>policy store</strong> format that any conforming PDP or tool MAY load, validate, and exchange without proprietary layout conventions.</t>
 
-<t>This document defines version 1.0 of the Cedar Policy Store Format.</t>
+<t>This document defines version 1.0 of the AuthZEN Policy Store Format.</t>
 
 </section>
 <section anchor="conventions-and-definitions"><name>Conventions and Definitions</name>
@@ -73,7 +73,11 @@
 <dl>
   <dt>Policy Store:</dt>
   <dd>
-    <t>A structured collection of Cedar policies, schema, and related artifacts bound together for evaluation, as defined in this document.</t>
+    <t>A structured collection of policies, schema, and related artifacts bound together for evaluation, as defined in this document.</t>
+  </dd>
+  <dt>Policy Engine:</dt>
+  <dd>
+    <t>The policy language and evaluation implementation used by a PDP (for example, Cedar or Cerbos). Identified in <spanx style="verb">metadata.json</spanx> by <spanx style="verb">policy_engine</spanx> and <spanx style="verb">policy_engine_version</spanx>.</t>
   </dd>
   <dt>Directory Format:</dt>
   <dd>
@@ -82,6 +86,10 @@
   <dt>Archive Format:</dt>
   <dd>
     <t>A policy store packaged as a ZIP archive with the <spanx style="verb">.cjar</spanx> file extension.</t>
+  </dd>
+  <dt>Constraint JAR (CJAR):</dt>
+  <dd>
+    <t>The Archive Format; a ZIP archive whose extension <spanx style="verb">.cjar</spanx> denotes a <strong>constraint jar</strong> — a self-contained package of authorization constraints (policies, schema, and related configuration) for distribution and deployment.</t>
   </dd>
   <dt>Policy Decision Point (PDP):</dt>
   <dd>
@@ -97,17 +105,20 @@
 </section>
 <section anchor="overview"><name>Overview</name>
 
-<t>A policy store bundles the artifacts required to evaluate Cedar authorization requests against a known schema and configuration baseline:</t>
+<t>A policy store bundles the artifacts a PDP needs to evaluate authorization requests against a known schema and configuration baseline:</t>
 
 <t><list style="symbols">
-  <t>Cedar schema (<spanx style="verb">schema.cedarschema</spanx>)</t>
-  <t>Cedar policies (one policy per file under <spanx style="verb">policies/</spanx>)</t>
-  <t>Optional Cedar policy templates (<spanx style="verb">templates/</spanx>)</t>
+  <t>Policy engine declaration in <spanx style="verb">metadata.json</spanx></t>
+  <t>Schema under <spanx style="verb">schema/</spanx></t>
+  <t>Policies (one policy document per file under <spanx style="verb">policies/</spanx>)</t>
+  <t>Optional policy templates (<spanx style="verb">templates/</spanx>)</t>
   <t>Optional default entities (<spanx style="verb">entities/</spanx>)</t>
   <t>Optional trusted issuer configuration (<spanx style="verb">trusted-issuers/</spanx>)</t>
   <t>Required metadata (<spanx style="verb">metadata.json</spanx>)</t>
   <t>Required manifest (<spanx style="verb">manifest.json</spanx>)</t>
 </list></t>
+
+<t>The syntax and semantics of policy documents, schema files, and entity types are defined by the declared <strong>policy engine</strong>. This specification defines the container layout, metadata, manifest, and interchange formats only.</t>
 
 <t>Implementations MAY support either the Directory Format or the Archive Format, or both. Tools that produce or consume policy stores SHOULD support conversion between formats without loss of content.</t>
 
@@ -122,14 +133,16 @@
 policy-store-root/
 ├── metadata.json
 ├── manifest.json
-├── schema.cedarschema
+├── schema/
+│   └── (schema files; format defined by policy_engine)
 ├── policies/
-│   └── *.cedar
+│   └── (one policy document per file)
 ├── templates/          (optional)
-│   └── *.cedar
+│   └── (one template document per file)
 ├── entities/           (optional)
 │   └── *.json
 └── trusted-issuers/    (optional)
+    └── *.json
 ]]></artwork></figure>
 
 <section anchor="required-files-and-directories"><name>Required Files and Directories</name>
@@ -143,13 +156,13 @@ policy-store-root/
   <dd>
     <t>REQUIRED at the policy store root. Contains the file inventory as defined in Manifest (<xref target="manifest"/>).</t>
   </dd>
-  <dt><spanx style="verb">schema.cedarschema</spanx>:</dt>
+  <dt><spanx style="verb">schema/</spanx>:</dt>
   <dd>
-    <t>REQUIRED at the policy store root. Contains the Cedar schema in Cedar schema syntax (<xref target="CEDAR"/>).</t>
+    <t>REQUIRED directory. Contains one or more schema artifacts required by the declared policy engine. File names and formats are defined by the policy engine documentation.</t>
   </dd>
   <dt><spanx style="verb">policies/</spanx>:</dt>
   <dd>
-    <t>REQUIRED directory. Contains one or more <spanx style="verb">.cedar</spanx> policy files.</t>
+    <t>REQUIRED directory. Contains one or more policy files. Each file MUST contain exactly one policy document in a format accepted by the declared policy engine.</t>
   </dd>
 </dl>
 
@@ -159,15 +172,15 @@ policy-store-root/
 <dl>
   <dt><spanx style="verb">templates/</spanx>:</dt>
   <dd>
-    <t>OPTIONAL. Contains Cedar policy template files.</t>
+    <t>OPTIONAL. Contains policy template documents when supported by the policy engine. Each file MUST contain exactly one template document.</t>
   </dd>
   <dt><spanx style="verb">entities/</spanx>:</dt>
   <dd>
-    <t>OPTIONAL. Contains default entity definition files in Cedar JSON entity format (<xref target="CEDAR-JSON"/>).</t>
+    <t>OPTIONAL. Contains default entity definition files as defined in Default Entities (<xref target="default-entities"/>).</t>
   </dd>
   <dt><spanx style="verb">trusted-issuers/</spanx>:</dt>
   <dd>
-    <t>OPTIONAL. Contains trusted issuer configuration files used by PDPs to validate and map tokens to Cedar entities.</t>
+    <t>OPTIONAL. Contains trusted issuer configuration files as defined in Trusted Issuers (<xref target="trusted-issuers"/>).</t>
   </dd>
 </dl>
 
@@ -180,15 +193,21 @@ policy-store-root/
 <t>Files under <spanx style="verb">policies/</spanx> and <spanx style="verb">templates/</spanx> MUST:</t>
 
 <t><list style="symbols">
-  <t>Use the <spanx style="verb">.cedar</spanx> file extension.</t>
-  <t>Contain exactly one Cedar policy or template, respectively.</t>
-  <t>Include a Cedar <spanx style="verb">@id()</spanx> annotation that uniquely identifies the policy or template within the policy store.</t>
+  <t>Contain exactly one policy or template document, respectively, in a format valid for the <spanx style="verb">policy_engine</spanx> declared in <spanx style="verb">metadata.json</spanx>.</t>
+  <t>Include a stable unique identifier for that policy or template within the policy store, expressed in the manner required by the policy engine (see Policy Identifiers (<xref target="policy-identifiers"/>)).</t>
 </list></t>
 
-<t>Policy and template identifiers MUST be stable across versions of a policy store when the policy or template semantics are unchanged. Filenames SHOULD be descriptive but are not required to match <spanx style="verb">@id()</spanx> values.</t>
+<t>Filenames SHOULD use extensions conventional for the declared policy engine. Filenames SHOULD be descriptive but are not required to match policy identifiers.</t>
 
 </section>
-<section anchor="entity-files"><name>Entity Files</name>
+<section anchor="policy-identifiers"><name>Policy Identifiers</name>
+
+<t>Each policy and template in a policy store MUST be uniquely identifiable within that store. How identifiers are assigned and embedded is <strong>policy engine specific</strong>. For example, Cedar PDPs typically require an <spanx style="verb">@id()</spanx> annotation in each policy file; Cerbos PDPs identify policies by resource kind, name, and version fields within YAML or JSON policy documents.</t>
+
+<t>Tools that are policy engine agnostic MUST preserve policy files without altering engine-specific identifiers.</t>
+
+</section>
+<section anchor="default-entities"><name>Entity Files</name>
 
 <t>Files under <spanx style="verb">entities/</spanx> MUST:</t>
 
@@ -197,12 +216,12 @@ policy-store-root/
   <t>Contain a JSON (<xref target="RFC8259"/>) array of entity definitions, or a single entity definition object (which implementations MAY normalize to an array).</t>
 </list></t>
 
-<t>Each entity definition MUST conform to the Cedar JSON entity format (<xref target="CEDAR-JSON"/>) and include:</t>
+<t>Each entity definition MUST include:</t>
 
 <dl>
   <dt><spanx style="verb">uid</spanx>:</dt>
   <dd>
-    <t>REQUIRED object with <spanx style="verb">type</spanx> and <spanx style="verb">id</spanx> string fields identifying the entity.</t>
+    <t>REQUIRED object with <spanx style="verb">type</spanx> and <spanx style="verb">id</spanx> string fields identifying the entity in the policy engine's type system.</t>
   </dd>
   <dt><spanx style="verb">attrs</spanx>:</dt>
   <dd>
@@ -210,13 +229,15 @@ policy-store-root/
   </dd>
   <dt><spanx style="verb">parents</spanx>:</dt>
   <dd>
-    <t>OPTIONAL array of parent entity references for hierarchical relationships.</t>
+    <t>OPTIONAL array of parent entity references for hierarchical relationships. Each reference is an object with <spanx style="verb">type</spanx> and <spanx style="verb">id</spanx> string fields.</t>
   </dd>
   <dt><spanx style="verb">tags</spanx>:</dt>
   <dd>
     <t>OPTIONAL object of string key-value metadata.</t>
   </dd>
 </dl>
+
+<t>PDPs MAY map this interchange format to engine-native entity representations on load.</t>
 
 </section>
 <section anchor="trusted-issuer-files"><name>Trusted Issuer Files</name>
@@ -229,9 +250,9 @@ policy-store-root/
 </list></t>
 
 </section>
-<section anchor="schema-file"><name>Schema File</name>
+<section anchor="schema-files"><name>Schema Files</name>
 
-<t>The schema file MUST be named <spanx style="verb">schema.cedarschema</spanx> and MUST contain a valid Cedar schema (<xref target="CEDAR"/>) for the policies in the policy store.</t>
+<t>The <spanx style="verb">schema/</spanx> directory MUST contain all schema artifacts required by the declared policy engine. Layout and file naming within <spanx style="verb">schema/</spanx> are defined by the policy engine. A conforming policy store MUST NOT omit schema required for evaluation of the policies it contains.</t>
 
 </section>
 </section>
@@ -244,9 +265,13 @@ policy-store-root/
 <t>The top-level JSON object MUST contain the following keys:</t>
 
 <dl>
-  <dt><spanx style="verb">cedar_version</spanx>:</dt>
+  <dt><spanx style="verb">policy_engine</spanx>:</dt>
   <dd>
-    <t>REQUIRED string. The version of the Cedar policy language used by policies in this policy store (for example, <spanx style="verb">"4.4.0"</spanx>).</t>
+    <t>REQUIRED string. Identifies the policy engine (for example, <spanx style="verb">"cedar"</spanx>, <spanx style="verb">"cerbos"</spanx>). Values SHOULD be lowercase alphanumeric strings; hyphen MAY separate words.</t>
+  </dd>
+  <dt><spanx style="verb">policy_engine_version</spanx>:</dt>
+  <dd>
+    <t>REQUIRED string. Version of the policy engine or policy language used by artifacts in this store (for example, <spanx style="verb">"4.4.0"</spanx> for Cedar, or an implementation version for Cerbos).</t>
   </dd>
   <dt><spanx style="verb">policy_store</spanx>:</dt>
   <dd>
@@ -290,7 +315,8 @@ policy-store-root/
 
 <figure title="Example metadata.json"><sourcecode type="json"><![CDATA[
 {
-  "cedar_version": "4.4.0",
+  "policy_engine": "cedar",
+  "policy_engine_version": "4.4.0",
   "policy_store": {
     "id": "9e96b204911d1c3",
     "name": "Acme Analytics Web Application",
@@ -347,7 +373,7 @@ policy-store-root/
       "size": 245,
       "checksum": "sha256:a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
     },
-    "schema.cedarschema": {
+    "schema/app.cedarschema": {
       "size": 1024,
       "checksum": "sha256:b3a8e0e1f9ab1bfe3a36f231f676f78bb30a519d2b21e6c530c0b86a4c4700e2"
     },
@@ -364,7 +390,7 @@ policy-store-root/
 </section>
 <section anchor="trusted-issuers"><name>Trusted Issuers</name>
 
-<t>Trusted issuer configuration files describe identity providers whose tokens a PDP MAY accept as evidence during policy evaluation. This enables PDPs to validate JSON Web Tokens (<xref target="RFC7519"/>) and map them to Cedar entity types declared in the schema.</t>
+<t>Trusted issuer configuration files describe identity providers whose tokens a PDP MAY accept as evidence during policy evaluation. This enables PDPs to validate JSON Web Tokens (<xref target="RFC7519"/>) and map them to principal or entity types in the policy engine's schema.</t>
 
 <section anchor="structure-2"><name>Structure</name>
 
@@ -400,7 +426,7 @@ policy-store-root/
 <dl>
   <dt><spanx style="verb">entity_type_name</spanx>:</dt>
   <dd>
-    <t>REQUIRED when the token type entry is present. Cedar entity type name (for example, <spanx style="verb">Jans::Access_token</spanx>) used when materializing tokens as entities.</t>
+    <t>REQUIRED when the token type entry is present. Type name in the policy engine's schema used when materializing tokens as principals or entities (for example, <spanx style="verb">Acme::Access_token</spanx> in Cedar, or a Cerbos principal schema reference).</t>
   </dd>
   <dt><spanx style="verb">trusted</spanx>:</dt>
   <dd>
@@ -438,7 +464,7 @@ policy-store-root/
 </section>
 <section anchor="archive-format"><name>Archive Format</name>
 
-<t>The Archive Format packages the Directory Format as a ZIP archive.</t>
+<t>The Archive Format packages the Directory Format as a ZIP archive (Constraint JAR, <spanx style="verb">.cjar</spanx>).</t>
 
 <section anchor="requirements"><name>Requirements</name>
 
@@ -461,9 +487,10 @@ policy-store-root/
   <t>Detect format (directory or <spanx style="verb">.cjar</spanx> archive) and normalize to a directory view.</t>
   <t>Verify required files and directories exist.</t>
   <t>Parse and validate <spanx style="verb">metadata.json</spanx> and <spanx style="verb">manifest.json</spanx>.</t>
+  <t>Confirm the implementation supports the declared <spanx style="verb">policy_engine</spanx> and <spanx style="verb">policy_engine_version</spanx>, or reject the store.</t>
   <t>If checksums are present, verify file integrity.</t>
-  <t>Load <spanx style="verb">schema.cedarschema</spanx>, then policies and optional templates, entities, and trusted issuers.</t>
-  <t>Verify each policy and template has an <spanx style="verb">@id()</spanx> annotation and that policy language version is compatible with <spanx style="verb">cedar_version</spanx>.</t>
+  <t>Load <spanx style="verb">schema/</spanx>, then policies and optional templates, entities, and trusted issuers according to policy engine rules.</t>
+  <t>Verify policy engine-specific requirements (such as unique policy identifiers).</t>
 </list></t>
 
 <t>Failure at any REQUIRED validation step SHOULD result in rejecting the policy store for evaluation.</t>
@@ -471,10 +498,10 @@ policy-store-root/
 </section>
 <section anchor="relationship-to-authzen"><name>Relationship to AuthZEN</name>
 
-<t>The AuthZEN Authorization API (<xref target="AUTHZEN-API"/>) standardizes communication between PEPs and PDPs. This specification does not define API endpoints. It standardizes how Cedar policy artifacts are packaged so that:</t>
+<t>The AuthZEN Authorization API (<xref target="AUTHZEN-API"/>) standardizes communication between PEPs and PDPs. This specification does not define API endpoints. It standardizes how policy artifacts are packaged so that:</t>
 
 <t><list style="symbols">
-  <t>PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format.</t>
+  <t>PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format regardless of policy engine.</t>
   <t>CI/CD pipelines MAY version, review, and promote policy stores as atomic units.</t>
   <t>Audit systems MAY bind decision logs to a specific <spanx style="verb">policy_store.id</spanx> and manifest checksums.</t>
 </list></t>
@@ -579,11 +606,11 @@ policy-store-root/
     <date year="n.d."/>
   </front>
 </reference>
-<reference anchor="CEDAR-JSON" target="https://docs.cedarpolicy.com/schema/json-schema.html">
+<reference anchor="CERBOS" target="https://docs.cerbos.dev/">
   <front>
-    <title>Cedar JSON Entity Format</title>
-    <author initials="C." surname="Team" fullname="Cedar Team">
-      <organization>Amazon Web Services</organization>
+    <title>Cerbos Policy Decision Point</title>
+    <author initials="C." surname="Project" fullname="Cerbos Project">
+      <organization>Cerbos</organization>
     </author>
     <date year="n.d."/>
   </front>
@@ -604,7 +631,7 @@ policy-store-root/
 </references>
 
 
-<?line 407?>
+<?line 430?>
 
 <section anchor="json-schemas"><name>JSON Schemas (Informative)</name>
 
@@ -616,9 +643,10 @@ policy-store-root/
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["cedar_version", "policy_store"],
+  "required": ["policy_engine", "policy_engine_version", "policy_store"],
   "properties": {
-    "cedar_version": { "type": "string" },
+    "policy_engine": { "type": "string", "minLength": 1 },
+    "policy_engine_version": { "type": "string", "minLength": 1 },
     "policy_store": {
       "type": "object",
       "required": ["id", "name"],
@@ -657,10 +685,7 @@ policy-store-root/
           "type": "object",
           "properties": {
             "trusted": { "type": "boolean", "default": true },
-            "entity_type_name": {
-              "type": "string",
-              "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*::[a-zA-Z_][a-zA-Z0-9_]*$"
-            },
+            "entity_type_name": { "type": "string", "minLength": 1 },
             "required_claims": {
               "type": "array",
               "items": { "type": "string", "minLength": 1 },
@@ -678,51 +703,146 @@ policy-store-root/
 ]]></sourcecode></figure>
 
 </section>
-</section>
-<section anchor="examples"><name>Examples (Informative)</name>
+<section anchor="entity-file-schema"><name>Entity File Schema</name>
 
-<section anchor="todo-application-policy-store"><name>Todo Application Policy Store</name>
+<figure><sourcecode type="json"><![CDATA[
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["uid", "attrs"],
+    "properties": {
+      "uid": {
+        "type": "object",
+        "required": ["type", "id"],
+        "properties": {
+          "type": { "type": "string", "minLength": 1 },
+          "id": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "attrs": { "type": "object", "additionalProperties": true },
+      "parents": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["type", "id"],
+          "properties": {
+            "type": { "type": "string", "minLength": 1 },
+            "id": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "tags": {
+        "type": "object",
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    "additionalProperties": false
+  }
+}
+]]></sourcecode></figure>
+
+</section>
+</section>
+<section anchor="examples"><name>Policy Engine Examples (Informative)</name>
+
+<t>The following examples illustrate how different PDPs MAY populate the same AuthZEN policy store layout. They are not normative.</t>
+
+<section anchor="cedar-pdp-example"><name>Cedar PDP Example</name>
+
+<t>A Cedar-based PDP (<xref target="CEDAR"/>) might use <spanx style="verb">policy_engine</spanx> value <spanx style="verb">"cedar"</spanx>, place a Cedar schema file under <spanx style="verb">schema/</spanx>, and use <spanx style="verb">.cedar</spanx> policy files:</t>
 
 <figure><artwork type="ascii-art"><![CDATA[
 todo-app-policy-store/
 ├── metadata.json
 ├── manifest.json
-├── schema.cedarschema
+├── schema/
+│   └── app.cedarschema
 ├── policies/
 │   ├── alice-read-access.cedar
 │   └── jack-search-access.cedar
 ├── entities/
 │   └── default-roles.json
 └── trusted-issuers/
-    └── jans-idp.json
+    └── acme-idp.json
 ]]></artwork></figure>
+
+<t><strong>metadata.json:</strong></t>
+
+<figure><sourcecode type="json"><![CDATA[
+{
+  "policy_engine": "cedar",
+  "policy_engine_version": "4.4.0",
+  "policy_store": {
+    "id": "9496b204911615307f6338de8a18c6885f2370793c31",
+    "name": "todo_app_policy_store",
+    "version": "1.0.0"
+  }
+}
+]]></sourcecode></figure>
 
 <t><strong>policies/alice-read-access.cedar:</strong></t>
 
 <figure><sourcecode type="cedar"><![CDATA[
 @id("alice-read-policy")
 permit(
-  principal == Jans::User::"Alice",
-  action == Jans::Action::"Read",
-  resource == Jans::Application::"todo"
+  principal == App::User::"Alice",
+  action == App::Action::"Read",
+  resource == App::Application::"todo"
 );
 ]]></sourcecode></figure>
 
-<t><strong>entities/default-roles.json:</strong></t>
+<t>The same store MAY be distributed as <spanx style="verb">todo-app-policy-store-v1.0.0.cjar</spanx>.</t>
+
+</section>
+<section anchor="cerbos-pdp-example"><name>Cerbos PDP Example</name>
+
+<t>A Cerbos PDP (<xref target="CERBOS"/>) might use <spanx style="verb">policy_engine</spanx> value <spanx style="verb">"cerbos"</spanx>, store JSON schemas under <spanx style="verb">schema/</spanx>, and use YAML policy files under <spanx style="verb">policies/</spanx>:</t>
+
+<figure><artwork type="ascii-art"><![CDATA[
+hr-policy-store/
+├── metadata.json
+├── manifest.json
+├── schema/
+│   └── principal.json
+├── policies/
+│   └── resource_policies/
+│       └── leave_request.yaml
+└── trusted-issuers/
+    └── corp-idp.json
+]]></artwork></figure>
+
+<t><strong>metadata.json:</strong></t>
 
 <figure><sourcecode type="json"><![CDATA[
-[
-  {
-    "uid": { "type": "Jans::Role", "id": "Searchable" },
-    "attrs": {
-      "name": "Searchable",
-      "permissions": ["search", "read"]
-    }
+{
+  "policy_engine": "cerbos",
+  "policy_engine_version": "0.52.0",
+  "policy_store": {
+    "id": "a1b2c3d4e5f6789012345678",
+    "name": "hr_policy_store",
+    "version": "2.0.0"
   }
-]
+}
 ]]></sourcecode></figure>
 
-<t>The same content MAY be distributed as <spanx style="verb">todo-app-policy-store-v1.0.0.cjar</spanx>.</t>
+<t><strong>policies/resource_policies/leave_request.yaml (excerpt):</strong></t>
+
+<figure><sourcecode type="yaml"><![CDATA[
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  version: default
+  resource: leave_request
+  rules:
+    - actions: ["view:*"]
+      effect: EFFECT_ALLOW
+      roles: ["employee"]
+]]></sourcecode></figure>
+
+<t>Cerbos deployments that use a native repository layout (for example, a top-level <spanx style="verb">_schemas</spanx> directory) MAY translate to or from this AuthZEN layout when importing or exporting a <spanx style="verb">.cjar</spanx> package.</t>
 
 </section>
 </section>
@@ -731,10 +851,11 @@ permit(
 <t>The following topics may be addressed in future revisions:</t>
 
 <t><list style="symbols">
-  <t>Whether policy <spanx style="verb">@id()</spanx> values MUST be unique across policies and templates, and relationship to filenames.</t>
+  <t>A registry of recognized <spanx style="verb">policy_engine</spanx> identifier strings.</t>
+  <t>Whether policy identifiers MUST be globally unique across policies and templates, and how that interacts with filenames.</t>
   <t>How policy templates are instantiated and linked to policies in multi-file layouts.</t>
   <t>Expression and validation of cross-policy dependencies.</t>
-  <t>Namespace-based subdirectory organization under <spanx style="verb">policies/</spanx>.</t>
+  <t>Subdirectory organization conventions under <spanx style="verb">policies/</spanx> per policy engine.</t>
 </list></t>
 
 </section>
@@ -761,163 +882,191 @@ permit(
   </back>
 
 <!-- ##markdown-source:
-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
-f5dCp31p7J8vmxOxbapm2JaIoJEBZ5qTAarqr2l52haXlJslpPOm88cDx5F+
-L4KmJcEleeaAonuE24cmqrThGqJD7a45WSCvp1XOdJ7WFeePX7fTycCWgQ7H
-uJDf2iGCgyhO2BhFbvYUt49BWwQO/zh6NPWLj4ZiJhmy9T2mCIANk3D3Gn1g
-q15FxsT6KpAEMkBoPm364sJWMI8AKOhxofbQmZojNf1W7DEHidjXiXbJ52+T
-V9rw0fUDDr2Wcxw5bDJ81yQcme7bnkTS4OHFrSj8QV/EC0aIfEbThmrcD2Lb
-3y8E1plPuYKiO6BTYNV9im6xQjdhD7uCBhu7eddog8uGh21etzy2vo0HO2Px
-A6fdIUX4bKE52OecezzYBYJDcsaJtiNsm9WkamExaTzYAxc096iIxQwjDkOb
-+5syhSk+jAf7Y6Jk78kMxVSZ1xnuM8uddA+9Owl+d7ft6x4cOApQLFf0nB8v
-JFW/es6tXbmhfaZh69vghrFZEkaj0+VDxvDsBGTnuUxSrJOSkVo1UZ9XQ0MR
-sEICNKPIKDPhkj2P7NTgWgL6xjsjRGlwl7quTfs2tl5/QRu3a4AHqaLtLevM
-dnPbI4vLZ0bsUf57+75dFcVET7iU9cAw46IKl8ErBsHxUdOZKf12V50TQ+go
-knTPBWxIJrtLyktjYEGVaGp26VFJOuqzvedG4+j48uLpGWhqUlDPJpsww8wh
-lbrVA4saxBrLvGp3BqIsVRDGRnhQhBkGWGts+Rfc28vwZgkd7Zn+2zS/0y2f
-0K19cvZrrZjVMmL8lYpqKuadmZhWmibz8N6KO+AM21lraw6WcmUzFqHRc1bG
-OjdhQE91Dd0TXjLo1tckek1dmfowaKZEmIJroLLgNnxqnqFox97caYrwzRUc
-kJz7pMwz03R95owM+aGwqo3i4nW7I2FjtqoVxDmKk9sGAt3zBGk1V14ofCQS
-oUhFQNWvPTycIQetmKFUNy6NdF8ndxihgwtXUnMaoJE5TaMxdoPnOjFWl71u
-Uzw3YnWvMol1FK4us90ef6Z+g3vEbnmCmris1dhBU6/hWg2qXxblJVr/fmB4
-l0JSIFFnVlzw/hgQL0oKyPzWCELjMdZUGrCqYP0loudybuNzyXx7iWmSmV7c
-KmhdD73qDOcpafrr8aKMLVxYb4A2uia42Ivdc/vF6qIeW9fe7hOinBbIUmcW
-qM7rMmqulXjWHIxh684F6enF6avTjo6Gl03QFWU5j+RgUZv7XjOwgAiEClPc
-9KDF5kVzVXQL4nHv9qQ20XgTZgQzkzSt8WJhxdFwc7cOKOeSO57iLDGdKq5I
-Kr0rql8jk+hQgLub50C0igsiwDrtJJj1p3PHpJLvKU4Ar4m1Q47/g3jD4NxO
-NL9yJWSXzfmXR/Py7ilduX66M9mZjKY75oapyeAg58KZnJbzM6tplFeFp5PD
-1pHkOz6lpHQbY48mBWyfaj42a3FhbSOsPbcPOftxC9I/wi+hRI+yxnduRA9C
-zcFpFxPcFecI+PDffpaj+eno+WR0/O5xuj882Pv4lUPWP2Jdv6Weo9XPDP4S
-QvUdq/ZuhkUSn7kzvhBI67z1TwAxMBywjaYYdOkTnapiTa5NYvLJoZyM97Rl
-/X8IvSdUw7XVk/Wy/4+L2XoRAyDg3F6o7K5a4CGMm/Gl4ra+GPQZMYDQqgGy
-pvLzCa01W79co5pIjg+no59u3pkfQJebd9tfBaPWg/+U2rdKT942TSkX92ma
-rU1pyteWdSWqcAHRJV77fYv5Pbs9OVlHhQBWG7luPWwtblQv7qKWYET+p+TN
-m8yNYBcGBH0oJMDW+yuYvM4gBBD+NywOLWANjq3ndoMIUw/VfNXjOofY2Oug
-CT8h0rp/U8HgEYT2wVdN/g/v4Ng3a05zOzdlfoGgaqQVVlTaAzt3bzqTjeqM
-8MMl+nNXbohD/sKZHmHxmaYRR8wFqU8cRp9sbzPBGUcsV2x4Q5nmG1uDAhOB
-ahOWdAG7+OYbwQdDb7UqT042TnEeKYSpSboBp/Q3DHkDQGkEhNoc6jZjGnmA
-gcj1jcHW13YfjmRdCrkt0L5/BuDGd9Rt58ELvYGZVN+mU4Ur4hTm641Fpt5s
-3xDbSro3uDHGSBn6ag9Xz5n1uABSMKiSv+PdXNtbd7ZrkdJ3r0jJScdtr+SP
-7qfjCfwf1e34UmoBSQ95+K7e4XkDy0s3dq/yApvRMEWf0UmUaS2FcLrVhKep
-NPLjgi8zmxQmvHHgasqmldVckggqbV6Bzd2a9mpLc3sBAusb39nPQ/gXTTlL
-wBpPlXBqBmDSJHvPNyH8ZuAlyEgy4mYgqrYT1GfcP2vLcF56hXkGYmxoLey3
-eejqMcx8hYgVEvQCsz38SMXML6Q2n3Do3qMhJr3KK/p2zOAsL1ZlcreoxGa0
-JSCkOhDehxeaL7WEH2RonovN1xfnz7fEXSkx96HrECv/A0JD+xkTBT9dJQv/
-gAyVWzLp5r2iyJA/ASG5L+BX0x48FGW+kinekCgV/PWQl2n8gEWMyGGPup5R
-7wZdRqe7rUNMuvACAqBQJvec78Hk99zBNvQkfOjq1lw11sDi1dDkcRhtCv6w
-CHY2BzVADdqbrppu5LosciqLzMVmsmX3TiVwf56Ruc0ExgTlvXCUYO7iOnic
-ajNKPbRlHFO7tTcyuH4JOhS7Uxxkj72gamycqRzYY/Ih3eUhONxx4AFzJc4k
-ixEprJpjjTMvNaGMTXN2FSMilYoW/EGD8BsK3QNd6kUkXOW9TFIuUmINwn21
-imhAj+5lmeS1NlvQ/qc7lgqbBbXdVldEqayOkgbp/WmKpYy7xZqhWJzAdJ3L
-1STPC5UWsGWNFoiIVIWbxAvNDfqt7+wAnpz/U82DymJUkVR3WBU2VW/Se6yN
-YS0NRJo4hGqEikEffahB7kwIvGr0hiTfHMgsSQvw0B8DRWOAYDjdf2BJCM/9
-EUytnTD8Ca4ZUaezxwqBczEOEbZayEaHpMkgyfjhnUz6gSI18/j+tcjMvXaS
-uKRqPilhvpbAhSOWFiJN87kyNZ9jzxBgYu830RBv+XG/UXMfIvI+k6aZXJ1d
-L7GIAzzcxDlY0wTJN/cfQP+B59yiAQtvgVyXaA7pCwNmDNu+RMWN3XtItNry
-BdmM8KcDd5YKfXzWfFAHbWOSzTGGJ3YOwTBVGZaXqehHNjSJ6hQPGtgc0Zp0
-FD50Hwfp3WXzaSakI7rcRL8n65GHZqqHQKgHGr8jEFuj4Fn7gAEXvlhfWrF+
-w4JiHJ5JfHSHNfl8rniXJH54QoEHIChQdBMfYr8KokeWfDOIkyf3NQvWngAw
-fUnLvPbQBsExOCfZfUI+36hl4K+w3abkGAYEFY8FKv4qDg13TgrNNiHkfvht
-99rziP73ewItlwgOT5Y9fXVvZiq4iWk/PdXXSjP4b8OcleUGUgAA
+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
 
 -->
 

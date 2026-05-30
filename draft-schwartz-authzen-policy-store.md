@@ -7,15 +7,15 @@ wg: OpenID AuthZEN
 
 docname: draft-schwartz-authzen-policy-store
 
-title: Cedar Policy Store Format
+title: AuthZEN Policy Store Format
 abbrev: policy-store
 lang: en
 kw:
  - Authorization
- - Cedar
  - Policy Store
  - PDP
  - AuthZEN
+ - CJAR
 
 author:
 - role: editor
@@ -47,12 +47,12 @@ informative:
    author:
    - name: Cedar Team
      org: Amazon Web Services
- CEDAR-JSON:
-   title: Cedar JSON Entity Format
-   target: https://docs.cedarpolicy.com/schema/json-schema.html
+ CERBOS:
+   title: Cerbos Policy Decision Point
+   target: https://docs.cerbos.dev/
    author:
-   - name: Cedar Team
-     org: Amazon Web Services
+   - name: Cerbos Project
+     org: Cerbos
  AUTHZEN-API:
    title: Authorization API 1.0
    target: https://openid.net/specs/authorization-api-1_0.html
@@ -62,17 +62,17 @@ informative:
 
 --- abstract
 
-This document defines the Cedar Policy Store Format, a structured packaging format for co-locating Cedar policies, schema, default entities, trusted token issuers, and related metadata required for authorization evaluation. The format supports a directory structure for development and version control, and a compressed archive format (`.cjar`) for distribution and deployment. Policy stores packaged in this format improve interoperability among Policy Decision Points (PDPs), tooling, and the OpenID AuthZEN ecosystem.
+This document defines the AuthZEN Policy Store Format, a Policy Decision Point (PDP) neutral packaging format for co-locating authorization policies, schema, default entities, trusted token issuers, and related metadata required for evaluation. The format supports a directory structure for development and version control, and a compressed archive format (`.cjar`, Constraint JAR) for distribution and deployment. Policy stores packaged in this format improve interoperability among PDPs, tooling, and the OpenID AuthZEN ecosystem regardless of underlying policy language or engine.
 
 --- middle
 
 # Introduction
 
-Cedar is a policy language for fine-grained authorization. Cedar does not prescribe how policies, schema, and supporting configuration are stored or versioned together. In practice, policies are written against a specific schema and evaluated with a consistent set of default entities and trusted token issuers. Without a standard packaging format, organizations adopt ad hoc conventions, which impedes portability, auditability, and interoperability among PDPs and third-party tools.
+Policy Decision Points (PDPs) evaluate authorization requests using policies, schema, and supporting configuration. PDP implementations — including engines such as Cedar ({{CEDAR}}) and Cerbos ({{CERBOS}}) — do not today share a common way to package and version those artifacts together. In practice, policies are written against a specific schema and evaluated with a consistent set of default entities and trusted token issuers. Without a standard packaging format, organizations adopt ad hoc conventions, which impedes portability, auditability, and interoperability among PDPs and third-party tools.
 
-The OpenID AuthZEN Working Group defines protocols and patterns for authorization interoperability, including the Authorization API ({{AUTHZEN-API}}). This specification complements AuthZEN by defining a portable, self-contained **policy store** format that PDPs and tooling can load, validate, and exchange without proprietary layout conventions.
+The OpenID AuthZEN Working Group defines protocols and patterns for authorization interoperability, including the Authorization API ({{AUTHZEN-API}}). This specification complements AuthZEN by defining a portable, PDP neutral, self-contained **policy store** format that any conforming PDP or tool MAY load, validate, and exchange without proprietary layout conventions.
 
-This document defines version 1.0 of the Cedar Policy Store Format.
+This document defines version 1.0 of the AuthZEN Policy Store Format.
 
 # Conventions and Definitions
 
@@ -81,13 +81,19 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 ## Terminology
 
 Policy Store:
-: A structured collection of Cedar policies, schema, and related artifacts bound together for evaluation, as defined in this document.
+: A structured collection of policies, schema, and related artifacts bound together for evaluation, as defined in this document.
+
+Policy Engine:
+: The policy language and evaluation implementation used by a PDP (for example, Cedar or Cerbos). Identified in `metadata.json` by `policy_engine` and `policy_engine_version`.
 
 Directory Format:
 : A policy store represented as a folder hierarchy on a filesystem.
 
 Archive Format:
 : A policy store packaged as a ZIP archive with the `.cjar` file extension.
+
+Constraint JAR (CJAR):
+: The Archive Format; a ZIP archive whose extension `.cjar` denotes a **constraint jar** — a self-contained package of authorization constraints (policies, schema, and related configuration) for distribution and deployment.
 
 Policy Decision Point (PDP):
 : A component that evaluates authorization requests against policies. See {{AUTHZEN-API}}.
@@ -97,15 +103,18 @@ Manifest:
 
 # Overview
 
-A policy store bundles the artifacts required to evaluate Cedar authorization requests against a known schema and configuration baseline:
+A policy store bundles the artifacts a PDP needs to evaluate authorization requests against a known schema and configuration baseline:
 
-* Cedar schema (`schema.cedarschema`)
-* Cedar policies (one policy per file under `policies/`)
-* Optional Cedar policy templates (`templates/`)
+* Policy engine declaration in `metadata.json`
+* Schema under `schema/`
+* Policies (one policy document per file under `policies/`)
+* Optional policy templates (`templates/`)
 * Optional default entities (`entities/`)
 * Optional trusted issuer configuration (`trusted-issuers/`)
 * Required metadata (`metadata.json`)
 * Required manifest (`manifest.json`)
+
+The syntax and semantics of policy documents, schema files, and entity types are defined by the declared **policy engine**. This specification defines the container layout, metadata, manifest, and interchange formats only.
 
 Implementations MAY support either the Directory Format or the Archive Format, or both. Tools that produce or consume policy stores SHOULD support conversion between formats without loss of content.
 
@@ -119,14 +128,16 @@ The root of a policy store (directory or archive) is referred to as the **policy
 policy-store-root/
 ├── metadata.json
 ├── manifest.json
-├── schema.cedarschema
+├── schema/
+│   └── (schema files; format defined by policy_engine)
 ├── policies/
-│   └── *.cedar
+│   └── (one policy document per file)
 ├── templates/          (optional)
-│   └── *.cedar
+│   └── (one template document per file)
 ├── entities/           (optional)
 │   └── *.json
 └── trusted-issuers/    (optional)
+    └── *.json
 ~~~
 {: title="Policy Store Directory Layout"}
 
@@ -138,22 +149,22 @@ policy-store-root/
 `manifest.json`:
 : REQUIRED at the policy store root. Contains the file inventory as defined in Manifest ({{manifest}}).
 
-`schema.cedarschema`:
-: REQUIRED at the policy store root. Contains the Cedar schema in Cedar schema syntax ({{CEDAR}}).
+`schema/`:
+: REQUIRED directory. Contains one or more schema artifacts required by the declared policy engine. File names and formats are defined by the policy engine documentation.
 
 `policies/`:
-: REQUIRED directory. Contains one or more `.cedar` policy files.
+: REQUIRED directory. Contains one or more policy files. Each file MUST contain exactly one policy document in a format accepted by the declared policy engine.
 
 ## Optional Directories
 
 `templates/`:
-: OPTIONAL. Contains Cedar policy template files.
+: OPTIONAL. Contains policy template documents when supported by the policy engine. Each file MUST contain exactly one template document.
 
 `entities/`:
-: OPTIONAL. Contains default entity definition files in Cedar JSON entity format ({{CEDAR-JSON}}).
+: OPTIONAL. Contains default entity definition files as defined in Default Entities ({{default-entities}}).
 
 `trusted-issuers/`:
-: OPTIONAL. Contains trusted issuer configuration files used by PDPs to validate and map tokens to Cedar entities.
+: OPTIONAL. Contains trusted issuer configuration files as defined in Trusted Issuers ({{trusted-issuers}}).
 
 # File Naming and Content Requirements
 
@@ -161,32 +172,39 @@ policy-store-root/
 
 Files under `policies/` and `templates/` MUST:
 
-* Use the `.cedar` file extension.
-* Contain exactly one Cedar policy or template, respectively.
-* Include a Cedar `@id()` annotation that uniquely identifies the policy or template within the policy store.
+* Contain exactly one policy or template document, respectively, in a format valid for the `policy_engine` declared in `metadata.json`.
+* Include a stable unique identifier for that policy or template within the policy store, expressed in the manner required by the policy engine (see Policy Identifiers ({{policy-identifiers}})).
 
-Policy and template identifiers MUST be stable across versions of a policy store when the policy or template semantics are unchanged. Filenames SHOULD be descriptive but are not required to match `@id()` values.
+Filenames SHOULD use extensions conventional for the declared policy engine. Filenames SHOULD be descriptive but are not required to match policy identifiers.
 
-## Entity Files
+## Policy Identifiers {#policy-identifiers}
+
+Each policy and template in a policy store MUST be uniquely identifiable within that store. How identifiers are assigned and embedded is **policy engine specific**. For example, Cedar PDPs typically require an `@id()` annotation in each policy file; Cerbos PDPs identify policies by resource kind, name, and version fields within YAML or JSON policy documents.
+
+Tools that are policy engine agnostic MUST preserve policy files without altering engine-specific identifiers.
+
+## Entity Files {#default-entities}
 
 Files under `entities/` MUST:
 
 * Use the `.json` file extension.
 * Contain a JSON ({{RFC8259}}) array of entity definitions, or a single entity definition object (which implementations MAY normalize to an array).
 
-Each entity definition MUST conform to the Cedar JSON entity format ({{CEDAR-JSON}}) and include:
+Each entity definition MUST include:
 
 `uid`:
-: REQUIRED object with `type` and `id` string fields identifying the entity.
+: REQUIRED object with `type` and `id` string fields identifying the entity in the policy engine's type system.
 
 `attrs`:
 : REQUIRED object containing entity attributes.
 
 `parents`:
-: OPTIONAL array of parent entity references for hierarchical relationships.
+: OPTIONAL array of parent entity references for hierarchical relationships. Each reference is an object with `type` and `id` string fields.
 
 `tags`:
 : OPTIONAL object of string key-value metadata.
+
+PDPs MAY map this interchange format to engine-native entity representations on load.
 
 ## Trusted Issuer Files
 
@@ -195,9 +213,9 @@ Files under `trusted-issuers/` MUST:
 * Use the `.json` file extension.
 * Contain a single trusted issuer configuration object as defined in Trusted Issuers ({{trusted-issuers}}).
 
-## Schema File
+## Schema Files
 
-The schema file MUST be named `schema.cedarschema` and MUST contain a valid Cedar schema ({{CEDAR}}) for the policies in the policy store.
+The `schema/` directory MUST contain all schema artifacts required by the declared policy engine. Layout and file naming within `schema/` are defined by the policy engine. A conforming policy store MUST NOT omit schema required for evaluation of the policies it contains.
 
 # Metadata {#metadata}
 
@@ -207,8 +225,11 @@ The `metadata.json` file provides version and descriptive metadata for the polic
 
 The top-level JSON object MUST contain the following keys:
 
-`cedar_version`:
-: REQUIRED string. The version of the Cedar policy language used by policies in this policy store (for example, `"4.4.0"`).
+`policy_engine`:
+: REQUIRED string. Identifies the policy engine (for example, `"cedar"`, `"cerbos"`). Values SHOULD be lowercase alphanumeric strings; hyphen MAY separate words.
+
+`policy_engine_version`:
+: REQUIRED string. Version of the policy engine or policy language used by artifacts in this store (for example, `"4.4.0"` for Cedar, or an implementation version for Cerbos).
 
 `policy_store`:
 : REQUIRED object containing policy store metadata fields defined below.
@@ -239,7 +260,8 @@ Implementations MUST NOT add additional top-level keys to `metadata.json` unless
 
 ~~~ json
 {
-  "cedar_version": "4.4.0",
+  "policy_engine": "cedar",
+  "policy_engine_version": "4.4.0",
   "policy_store": {
     "id": "9e96b204911d1c3",
     "name": "Acme Analytics Web Application",
@@ -286,7 +308,7 @@ Implementations SHOULD verify that every file listed in `files` exists in the po
       "size": 245,
       "checksum": "sha256:a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
     },
-    "schema.cedarschema": {
+    "schema/app.cedarschema": {
       "size": 1024,
       "checksum": "sha256:b3a8e0e1f9ab1bfe3a36f231f676f78bb30a519d2b21e6c530c0b86a4c4700e2"
     },
@@ -301,7 +323,7 @@ Implementations SHOULD verify that every file listed in `files` exists in the po
 
 # Trusted Issuers {#trusted-issuers}
 
-Trusted issuer configuration files describe identity providers whose tokens a PDP MAY accept as evidence during policy evaluation. This enables PDPs to validate JSON Web Tokens ({{RFC7519}}) and map them to Cedar entity types declared in the schema.
+Trusted issuer configuration files describe identity providers whose tokens a PDP MAY accept as evidence during policy evaluation. This enables PDPs to validate JSON Web Tokens ({{RFC7519}}) and map them to principal or entity types in the policy engine's schema.
 
 ## Structure
 
@@ -327,7 +349,7 @@ Each trusted issuer file MUST be a JSON object with:
 For each token type key in `token_metadata`, the value object MAY include:
 
 `entity_type_name`:
-: REQUIRED when the token type entry is present. Cedar entity type name (for example, `Jans::Access_token`) used when materializing tokens as entities.
+: REQUIRED when the token type entry is present. Type name in the policy engine's schema used when materializing tokens as principals or entities (for example, `Acme::Access_token` in Cedar, or a Cerbos principal schema reference).
 
 `trusted`:
 : OPTIONAL boolean. When `false`, tokens of this type from this issuer MUST be rejected. Default is `true` when omitted.
@@ -358,7 +380,7 @@ PDP implementations MAY define additional fields within token type entries or at
 
 # Archive Format {#archive-format}
 
-The Archive Format packages the Directory Format as a ZIP archive.
+The Archive Format packages the Directory Format as a ZIP archive (Constraint JAR, `.cjar`).
 
 ## Requirements
 
@@ -376,17 +398,18 @@ PDPs and tools that load policy stores SHOULD perform the following steps:
 1. Detect format (directory or `.cjar` archive) and normalize to a directory view.
 2. Verify required files and directories exist.
 3. Parse and validate `metadata.json` and `manifest.json`.
-4. If checksums are present, verify file integrity.
-5. Load `schema.cedarschema`, then policies and optional templates, entities, and trusted issuers.
-6. Verify each policy and template has an `@id()` annotation and that policy language version is compatible with `cedar_version`.
+4. Confirm the implementation supports the declared `policy_engine` and `policy_engine_version`, or reject the store.
+5. If checksums are present, verify file integrity.
+6. Load `schema/`, then policies and optional templates, entities, and trusted issuers according to policy engine rules.
+7. Verify policy engine-specific requirements (such as unique policy identifiers).
 
 Failure at any REQUIRED validation step SHOULD result in rejecting the policy store for evaluation.
 
 # Relationship to AuthZEN
 
-The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication between PEPs and PDPs. This specification does not define API endpoints. It standardizes how Cedar policy artifacts are packaged so that:
+The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication between PEPs and PDPs. This specification does not define API endpoints. It standardizes how policy artifacts are packaged so that:
 
-* PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format.
+* PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format regardless of policy engine.
 * CI/CD pipelines MAY version, review, and promote policy stores as atomic units.
 * Audit systems MAY bind decision logs to a specific `policy_store.id` and manifest checksums.
 
@@ -416,9 +439,10 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["cedar_version", "policy_store"],
+  "required": ["policy_engine", "policy_engine_version", "policy_store"],
   "properties": {
-    "cedar_version": { "type": "string" },
+    "policy_engine": { "type": "string", "minLength": 1 },
+    "policy_engine_version": { "type": "string", "minLength": 1 },
     "policy_store": {
       "type": "object",
       "required": ["id", "name"],
@@ -456,10 +480,7 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
           "type": "object",
           "properties": {
             "trusted": { "type": "boolean", "default": true },
-            "entity_type_name": {
-              "type": "string",
-              "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*::[a-zA-Z_][a-zA-Z0-9_]*$"
-            },
+            "entity_type_name": { "type": "string", "minLength": 1 },
             "required_claims": {
               "type": "array",
               "items": { "type": "string", "minLength": 1 },
@@ -476,22 +497,83 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
 }
 ~~~
 
-# Examples (Informative) {#examples}
+## Entity File Schema
 
-## Todo Application Policy Store
+~~~ json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["uid", "attrs"],
+    "properties": {
+      "uid": {
+        "type": "object",
+        "required": ["type", "id"],
+        "properties": {
+          "type": { "type": "string", "minLength": 1 },
+          "id": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "attrs": { "type": "object", "additionalProperties": true },
+      "parents": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["type", "id"],
+          "properties": {
+            "type": { "type": "string", "minLength": 1 },
+            "id": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "tags": {
+        "type": "object",
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    "additionalProperties": false
+  }
+}
+~~~
+
+# Policy Engine Examples (Informative) {#examples}
+
+The following examples illustrate how different PDPs MAY populate the same AuthZEN policy store layout. They are not normative.
+
+## Cedar PDP Example
+
+A Cedar-based PDP ({{CEDAR}}) might use `policy_engine` value `"cedar"`, place a Cedar schema file under `schema/`, and use `.cedar` policy files:
 
 ~~~ ascii-art
 todo-app-policy-store/
 ├── metadata.json
 ├── manifest.json
-├── schema.cedarschema
+├── schema/
+│   └── app.cedarschema
 ├── policies/
 │   ├── alice-read-access.cedar
 │   └── jack-search-access.cedar
 ├── entities/
 │   └── default-roles.json
 └── trusted-issuers/
-    └── jans-idp.json
+    └── acme-idp.json
+~~~
+
+**metadata.json:**
+
+~~~ json
+{
+  "policy_engine": "cedar",
+  "policy_engine_version": "4.4.0",
+  "policy_store": {
+    "id": "9496b204911615307f6338de8a18c6885f2370793c31",
+    "name": "todo_app_policy_store",
+    "version": "1.0.0"
+  }
+}
 ~~~
 
 **policies/alice-read-access.cedar:**
@@ -499,36 +581,69 @@ todo-app-policy-store/
 ~~~ cedar
 @id("alice-read-policy")
 permit(
-  principal == Jans::User::"Alice",
-  action == Jans::Action::"Read",
-  resource == Jans::Application::"todo"
+  principal == App::User::"Alice",
+  action == App::Action::"Read",
+  resource == App::Application::"todo"
 );
 ~~~
 
-**entities/default-roles.json:**
+The same store MAY be distributed as `todo-app-policy-store-v1.0.0.cjar`.
 
-~~~ json
-[
-  {
-    "uid": { "type": "Jans::Role", "id": "Searchable" },
-    "attrs": {
-      "name": "Searchable",
-      "permissions": ["search", "read"]
-    }
-  }
-]
+## Cerbos PDP Example
+
+A Cerbos PDP ({{CERBOS}}) might use `policy_engine` value `"cerbos"`, store JSON schemas under `schema/`, and use YAML policy files under `policies/`:
+
+~~~ ascii-art
+hr-policy-store/
+├── metadata.json
+├── manifest.json
+├── schema/
+│   └── principal.json
+├── policies/
+│   └── resource_policies/
+│       └── leave_request.yaml
+└── trusted-issuers/
+    └── corp-idp.json
 ~~~
 
-The same content MAY be distributed as `todo-app-policy-store-v1.0.0.cjar`.
+**metadata.json:**
+
+~~~ json
+{
+  "policy_engine": "cerbos",
+  "policy_engine_version": "0.52.0",
+  "policy_store": {
+    "id": "a1b2c3d4e5f6789012345678",
+    "name": "hr_policy_store",
+    "version": "2.0.0"
+  }
+}
+~~~
+
+**policies/resource_policies/leave_request.yaml (excerpt):**
+
+~~~ yaml
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  version: default
+  resource: leave_request
+  rules:
+    - actions: ["view:*"]
+      effect: EFFECT_ALLOW
+      roles: ["employee"]
+~~~
+
+Cerbos deployments that use a native repository layout (for example, a top-level `_schemas` directory) MAY translate to or from this AuthZEN layout when importing or exporting a `.cjar` package.
 
 # Open Issues (Informative) {#open-issues}
 
 The following topics may be addressed in future revisions:
 
-* Whether policy `@id()` values MUST be unique across policies and templates, and relationship to filenames.
+* A registry of recognized `policy_engine` identifier strings.
+* Whether policy identifiers MUST be globally unique across policies and templates, and how that interacts with filenames.
 * How policy templates are instantiated and linked to policies in multi-file layouts.
 * Expression and validation of cross-policy dependencies.
-* Namespace-based subdirectory organization under `policies/`.
+* Subdirectory organization conventions under `policies/` per policy engine.
 
 # Notices
 

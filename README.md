@@ -1,6 +1,8 @@
-# AuthZEN Cedar Policy Store Format (Draft)
+# AuthZEN Policy Store Format (Draft)
 
-Working draft for the [OpenID AuthZEN](https://openid.net/wg/authzen/) Working Group, derived from [Cedar RFC 0101](https://github.com/ossdhaval/cedar-rfcs/blob/main/text/0101-policy-store-specification.md).
+PDP-neutral working draft for the [OpenID AuthZEN](https://openid.net/wg/authzen/) Working Group. Defines a portable policy store layout and **Constraint JAR** (`.cjar`) archive format for authorization artifacts, independent of policy engine (Cedar, Cerbos, and others).
+
+Derived in part from [Cedar RFC 0101](https://github.com/ossdhaval/cedar-rfcs/blob/main/text/0101-policy-store-specification.md).
 
 ## Files
 
