@@ -21,12 +21,12 @@ author:
 - role: editor
   ins: M. Schwartz
   name: Michael Schwartz
-  org: Independent Contributor
+  org: Gluu
   email: mike@gluu.org
 - role: editor
   ins: D. Desai
   name: Dhaval Desai
-  org: Independent Contributor
+  org: Gluu
   email: dhaval.desai@gmail.com
 
 contributor:
