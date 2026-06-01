@@ -27,7 +27,7 @@ author:
   ins: D. Desai
   name: Dhaval Desai
   org: Gluu
-  email: dhaval.desai@gmail.com
+  email: dhaval@gluu.org
 
 contributor:
 - name: Victor Moreno
