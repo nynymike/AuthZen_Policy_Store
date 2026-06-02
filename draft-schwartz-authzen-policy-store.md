@@ -98,9 +98,6 @@ Constraint JAR (CJAR):
 Policy Decision Point (PDP):
 : A component that evaluates authorization requests against policies. See {{AUTHZEN-API}}.
 
-Manifest:
-: The `manifest.json` file that inventories policy store files and optional integrity metadata.
-
 # Overview
 
 A policy store bundles the artifacts a PDP needs to evaluate authorization requests against a known schema and configuration baseline:
@@ -112,9 +109,8 @@ A policy store bundles the artifacts a PDP needs to evaluate authorization reque
 * Optional default entities (`entities/`)
 * Optional trusted issuer configuration (`trusted-issuers/`)
 * Required metadata (`metadata.json`)
-* Required manifest (`manifest.json`)
 
-The syntax and semantics of policy documents, schema files, and entity types are defined by the declared **policy engine**. This specification defines the container layout, metadata, manifest, and interchange formats only.
+The syntax and semantics of policy documents, schema files, and entity types are defined by the declared **policy engine**. This specification defines the container layout, metadata, and interchange formats only.
 
 Implementations MAY support either the Directory Format or the Archive Format, or both. Tools that produce or consume policy stores SHOULD support conversion between formats without loss of content.
 
@@ -127,7 +123,6 @@ The root of a policy store (directory or archive) is referred to as the **policy
 ~~~ ascii-art
 policy-store-root/
 ├── metadata.json
-├── manifest.json
 ├── policies/
 │   └── (one policy document per file)
 ├── schema/             (optional)
@@ -145,9 +140,6 @@ policy-store-root/
 
 `metadata.json`:
 : REQUIRED at the policy store root. Contains policy store metadata as defined in Metadata ({{metadata}}).
-
-`manifest.json`:
-: REQUIRED at the policy store root. Contains the file inventory as defined in Manifest ({{manifest}}).
 
 `policies/`:
 : REQUIRED directory. Contains one or more policy files. Each file MUST contain exactly one policy document in a format accepted by the declared policy engine.
@@ -274,53 +266,6 @@ Implementations MUST NOT add additional top-level keys to `metadata.json` unless
 ~~~
 {: title="Example metadata.json"}
 
-# Manifest {#manifest}
-
-The `manifest.json` file provides an inventory of files in the policy store for validation and integrity checking.
-
-## Structure
-
-`policy_store_id`:
-: REQUIRED string. MUST match `policy_store.id` from `metadata.json`.
-
-`generated_date`:
-: OPTIONAL string. ISO 8601 date-time when the manifest was generated.
-
-`files`:
-: REQUIRED object. Keys are relative paths from the policy store root (using forward slashes). Values are objects with:
-
-`size`:
-: OPTIONAL number. Size of the file in bytes.
-
-`checksum`:
-: OPTIONAL string. Integrity checksum in the form `sha256:` followed by a lowercase hexadecimal SHA-256 digest.
-
-Implementations SHOULD verify that every file listed in `files` exists in the policy store and that optional checksums match. Implementations MAY reject policy stores where `policy_store_id` does not match `metadata.json`.
-
-### Example (non-normative)
-
-~~~ json
-{
-  "policy_store_id": "9496b204911615307f6338de8a18c6885f2370793c31",
-  "generated_date": "2025-01-18T14:22:00Z",
-  "files": {
-    "metadata.json": {
-      "size": 245,
-      "checksum": "sha256:a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
-    },
-    "schema/app.cedarschema": {
-      "size": 1024,
-      "checksum": "sha256:b3a8e0e1f9ab1bfe3a36f231f676f78bb30a519d2b21e6c530c0b86a4c4700e2"
-    },
-    "policies/alice-read-access.cedar": {
-      "size": 156,
-      "checksum": "sha256:c2d4e6f2a1b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9"
-    }
-  }
-}
-~~~
-{: title="Example manifest.json"}
-
 # Trusted Issuers {#trusted-issuers}
 
 Trusted issuer configuration files describe identity providers whose tokens a PDP MAY accept as evidence during policy evaluation. This enables PDPs to validate JSON Web Tokens ({{RFC7519}}) and map them to principal or entity types in the policy engine's schema.
@@ -389,7 +334,7 @@ The Archive Format packages the Directory Format as a ZIP archive (Constraint JA
 * The archive MUST NOT require extraction to a specific absolute path; relative paths MUST be preserved.
 * Archive file names SHOULD follow the pattern `{policy-store-name}-{version}.cjar` where `version` matches `policy_store.version` in `metadata.json` when present.
 
-Tools MAY generate manifests over archive contents before distribution. PDPs loading `.cjar` files SHOULD validate structure, required files, manifest consistency, and optional checksums before evaluation.
+PDPs loading `.cjar` files SHOULD validate structure and required files before evaluation.
 
 # Policy Store Loading
 
@@ -397,11 +342,10 @@ PDPs and tools that load policy stores SHOULD perform the following steps:
 
 1. Detect format (directory or `.cjar` archive) and normalize to a directory view.
 2. Verify required files and directories exist.
-3. Parse and validate `metadata.json` and `manifest.json`.
+3. Parse and validate `metadata.json`.
 4. Confirm the implementation supports the declared `policy_engine` and `policy_engine_version`, or reject the store.
-5. If checksums are present, verify file integrity.
-6. If present, load `schema/`; then load policies and optional templates, entities, and trusted issuers according to policy engine rules.
-7. Verify policy engine-specific requirements (such as unique policy identifiers).
+5. If present, load `schema/`; then load policies and optional templates, entities, and trusted issuers according to policy engine rules.
+6. Verify policy engine-specific requirements (such as unique policy identifiers).
 
 Failure at any REQUIRED validation step SHOULD result in rejecting the policy store for evaluation.
 
@@ -411,13 +355,13 @@ The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication betwe
 
 * PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format regardless of policy engine.
 * CI/CD pipelines MAY version, review, and promote policy stores as atomic units.
-* Audit systems MAY bind decision logs to a specific `policy_store.id` and manifest checksums.
+* Audit systems MAY bind decision logs to a specific `policy_store.id`.
 
 # Security Considerations
 
 Policy stores contain authorization rules and may include sensitive configuration. Implementations MUST protect policy stores at rest and in transit using appropriate access controls for the deployment environment.
 
-Checksums in `manifest.json` are RECOMMENDED to detect tampering. Checksums alone do not provide authenticity; deployments SHOULD combine manifests with signed releases or secure artifact repositories where integrity and provenance are required.
+Deployments SHOULD use signed releases or secure artifact repositories where integrity and provenance are required.
 
 Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate `configuration_endpoint` URIs and token metadata before trusting tokens in production.
 
@@ -550,7 +494,6 @@ A Cedar-based PDP ({{CEDAR}}) might use `policy_engine` value `"cedar"`, place a
 ~~~ ascii-art
 todo-app-policy-store/
 ├── metadata.json
-├── manifest.json
 ├── schema/
 │   └── app.cedarschema
 ├── policies/
@@ -596,7 +539,6 @@ A Cerbos PDP ({{CERBOS}}) might use `policy_engine` value `"cerbos"`, store JSON
 ~~~ ascii-art
 hr-policy-store/
 ├── metadata.json
-├── manifest.json
 ├── schema/
 │   └── principal.json
 ├── policies/
