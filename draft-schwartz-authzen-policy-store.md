@@ -62,7 +62,7 @@ informative:
 
 --- abstract
 
-This document defines the AuthZEN Policy Store Format, a Policy Decision Point (PDP) neutral packaging format for co-locating authorization policies, schema, default entities, trusted token issuers, and related metadata required for evaluation. The format supports a directory structure for development and version control, and a compressed archive format (`.cjar`, Constraint JAR) for distribution and deployment. Policy stores packaged in this format improve interoperability among PDPs, tooling, and the OpenID AuthZEN ecosystem regardless of underlying policy language or engine.
+This document defines the AuthZEN Policy Store Format and an API for managing policy stores. A policy store is a Policy Decision Point (PDP) neutral packaging format for co-locating authorization policies, schema, default entities, trusted token issuers, and related metadata required for evaluation. The format supports a directory structure for development and version control, and a compressed archive format (`.cjar`, Constraint JAR) for distribution and deployment. Policy stores packaged in this format improve interoperability among PDPs, tooling, and the OpenID AuthZEN ecosystem regardless of underlying policy language or engine. PDP also serves the policy store API that allows administrators to upload the updated versions of the policy store. API does not allow updates to an existing store or deletion of the same.
 
 --- middle
 
@@ -70,7 +70,7 @@ This document defines the AuthZEN Policy Store Format, a Policy Decision Point (
 
 Policy Decision Points (PDPs) evaluate authorization requests using policies, schema, and supporting configuration. PDP implementations — including engines such as Cedar ({{CEDAR}}) and Cerbos ({{CERBOS}}) — do not today share a common way to package and version those artifacts together. In practice, policies are written against a specific schema and evaluated with a consistent set of default entities and trusted token issuers. Without a standard packaging format, organizations adopt ad hoc conventions, which impedes portability, auditability, and interoperability among PDPs and third-party tools.
 
-The OpenID AuthZEN Working Group defines protocols and patterns for authorization interoperability, including the Authorization API ({{AUTHZEN-API}}). This specification complements AuthZEN by defining a portable, PDP neutral, self-contained **policy store** format that any conforming PDP or tool MAY load, validate, and exchange without proprietary layout conventions.
+The OpenID AuthZEN Working Group defines protocols and patterns for authorization interoperability, including the Authorization API ({{AUTHZEN-API}}). This specification complements AuthZEN by defining policy store API and a portable, PDP neutral, self-contained **policy store** format that any conforming PDP or tool MAY load, validate, and exchange without proprietary layout conventions.
 
 This document defines version 1.0 of the AuthZEN Policy Store Format.
 
@@ -100,7 +100,13 @@ Policy Decision Point (PDP):
 
 # Overview
 
-A policy store bundles the artifacts a PDP needs to evaluate authorization requests against a known schema and configuration baseline:
+## Policy store API
+
+The **`/policystore`** endpoint is a POST‑only HTTP API that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. This API enables PDP administrators to upload the updated versions of the policy stores. API does not expose HTTP methods that allow updates or deletion of the existing policy stores. This ensures that the policy stores are treated as immutable stores and can be versioned and rolled back easily.
+
+## Policy store
+
+A **policy store** bundles together the artifacts that a PDP needs to evaluate authorization requests against a known schema and configuration baseline. These artifacts include:
 
 * Policy engine declaration in `metadata.json`
 * Policies (one policy document per file under `policies/`)
@@ -116,7 +122,61 @@ Implementations MAY support either the Directory Format or the Archive Format, o
 
 The Archive Format is a ZIP archive containing the same relative paths as the Directory Format. Archive files MUST use the `.cjar` extension.
 
-# Directory Structure
+# Policy Store API
+
+Policy store API defines `/policystore` endpoint for uploading the policy store.
+
+## API Request
+
+The **`/policystore`** endpoint is a POST‑only HTTP API that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. The request body must be a multipart/form‑data upload with the following parts:
+
+- **file**: The `.cjar` archive.
+- **metadata**: A JSON object providing:
+  - `version` (string): The version of the policy store.
+  - `created_timestamp` (string, ISO‑8601): The creation date‑time of the uploaded policy store.
+
+**Example Request**:
+
+~~~http
+POST /policystore HTTP/1.1
+Host: api.example.com
+Content-Type: multipart/form-data; boundary=---XYZ
+
+-----XYZ
+Content-Disposition: form-data; name="file"; filename="store.cjar"
+Content-Type: application/zip
+
+<binary .cjar content>
+-----XYZ
+Content-Disposition: form-data; name="metadata"
+Content-Type: application/json
+
+{"version":"1.0.0","created_timestamp":"2026-07-15T10:30:00Z"}
+-----XYZ--
+~~~
+
+## API Response
+
+The server validates the uploaded file and metadata. On success it stores the file and returns **201 Created** with a JSON body containing the assigned identifier. On validation failure it returns **400 Bad Request** with an error description.
+
+**Example Response (Success)**:
+
+~~~json
+{
+  "id": "store-12345",
+  "message": "Policy store uploaded successfully."
+}
+~~~
+
+**Example Response (Error)**:
+
+~~~json
+{
+  "error": "Invalid metadata.version does not match archive."
+}
+~~~
+
+# Policy Store Directory Structure
 
 The root of a policy store (directory or archive) is referred to as the **policy store root**. The following layout is REQUIRED for conformant policy stores:
 
@@ -359,6 +419,8 @@ The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication betwe
 
 # Security Considerations
 
+## Policy store
+
 Policy stores contain authorization rules and may include sensitive configuration. Implementations MUST protect policy stores at rest and in transit using appropriate access controls for the deployment environment.
 
 Deployments SHOULD use signed releases or secure artifact repositories where integrity and provenance are required.
@@ -366,6 +428,10 @@ Deployments SHOULD use signed releases or secure artifact repositories where int
 Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate `configuration_endpoint` URIs and token metadata before trusting tokens in production.
 
 Policy stores SHOULD be treated as part of the trusted computing base for authorization decisions. Loading a policy store from an untrusted source without validation is NOT RECOMMENDED.
+
+## Policy store API
+
+PDP should protect this API endpoint by taking appropriate measures to authenticate and authorise the request in accordance with [Authorization API guidelines](https://openid.net/specs/authorization-api-1_0.html#section-11.2)
 
 # IANA Considerations
 
