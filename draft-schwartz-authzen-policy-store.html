@@ -8,9 +8,9 @@
 <meta content="Michael Schwartz" name="author">
 <meta content="Dhaval Desai" name="author">
 <meta content="
-       This document defines the AuthZEN Policy Store Format, a Policy Decision Point (PDP) neutral packaging format for co-locating authorization policies, schema, default entities, trusted token issuers, and related metadata required for evaluation. The format supports a directory structure for development and version control, and a compressed archive format ( .cjar , Constraint JAR) for distribution and deployment. Policy stores packaged in this format improve interoperability among PDPs, tooling, and the OpenID AuthZEN ecosystem regardless of underlying policy language or engine. 
+       This document defines the AuthZEN Policy Store Format and an API for managing policy stores. A policy store is a Policy Decision Point (PDP) neutral packaging format for co-locating authorization policies, schema, default entities, trusted token issuers, and related metadata required for evaluation. The format supports a directory structure for development and version control, and a compressed archive format ( .cjar , Constraint JAR) for distribution and deployment. Policy stores packaged in this format improve interoperability among PDPs, tooling, and the OpenID AuthZEN ecosystem regardless of underlying policy language or engine. PDP also serves the policy store API that allows administrators to upload the updated versions of the policy store. API does not allow updates to an existing store or deletion of the same. 
     " name="description">
-<meta content="xml2rfc 3.33.0" name="generator">
+<meta content="xml2rfc 3.34.0" name="generator">
 <meta content="Authorization" name="keyword">
 <meta content="Policy Store" name="keyword">
 <meta content="PDP" name="keyword">
@@ -18,18 +18,19 @@
 <meta content="CJAR" name="keyword">
 <meta content="draft-schwartz-authzen-policy-store" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.33.0
-    Python 3.12.3
+  xml2rfc 3.34.0
+    Python 3.13.14
     ConfigArgParse 1.7.5
     google-i18n-address 3.1.1
     intervaltree 3.2.1
     Jinja2 3.1.6
     lxml 6.1.1
+    natsort 8.4.0
     platformdirs 4.10.0
     pycountry 26.2.16
     PyYAML 6.0.3
     requests 2.34.2
-    wcwidth 0.7.0
+    wcwidth 0.8.2
 -->
 <link href="draft-schwartz-authzen-policy-store.xml" rel="alternate" type="application/rfc+xml">
 <link href="#copyright" rel="license">
@@ -1220,7 +1221,7 @@ li > p:last-of-type:only-child {
 <thead><tr>
 <td class="left"></td>
 <td class="center">policy-store</td>
-<td class="right">June 2026</td>
+<td class="right">July 2026</td>
 </tr></thead>
 <tfoot><tr>
 <td class="left">Schwartz &amp; Desai</td>
@@ -1235,7 +1236,7 @@ li > p:last-of-type:only-child {
 <dd class="workgroup">OpenID AuthZEN</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2026-06-03" class="published">3 June 2026</time>
+<time datetime="2026-07-17" class="published">17 July 2026</time>
     </dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
@@ -1255,7 +1256,7 @@ li > p:last-of-type:only-child {
 <h1 id="title">AuthZEN Policy Store Format</h1>
 <section id="section-abstract">
       <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
-<p id="section-abstract-1">This document defines the AuthZEN Policy Store Format, a Policy Decision Point (PDP) neutral packaging format for co-locating authorization policies, schema, default entities, trusted token issuers, and related metadata required for evaluation. The format supports a directory structure for development and version control, and a compressed archive format (<code>.cjar</code>, Constraint JAR) for distribution and deployment. Policy stores packaged in this format improve interoperability among PDPs, tooling, and the OpenID AuthZEN ecosystem regardless of underlying policy language or engine.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+<p id="section-abstract-1">This document defines the AuthZEN Policy Store Format and an API for managing policy stores. A policy store is a Policy Decision Point (PDP) neutral packaging format for co-locating authorization policies, schema, default entities, trusted token issuers, and related metadata required for evaluation. The format supports a directory structure for development and version control, and a compressed archive format (<code>.cjar</code>, Constraint JAR) for distribution and deployment. Policy stores packaged in this format improve interoperability among PDPs, tooling, and the OpenID AuthZEN ecosystem regardless of underlying policy language or engine. PDP also serves the policy store API that allows administrators to upload the updated versions of the policy store. API does not allow updates to an existing store or deletion of the same.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
 </section>
 <div id="toc">
 <section id="section-toc.1">
@@ -1276,137 +1277,167 @@ li > p:last-of-type:only-child {
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
             <p id="section-toc.1-1.3.1"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-overview" class="internal xref">Overview</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1">
+                <p id="section-toc.1-1.3.2.1.1"><a href="#section-3.1" class="auto internal xref">3.1</a>.  <a href="#name-policy-store-api" class="internal xref">Policy store API</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.2">
+                <p id="section-toc.1-1.3.2.2.1"><a href="#section-3.2" class="auto internal xref">3.2</a>.  <a href="#name-policy-store" class="internal xref">Policy store</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
-            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-directory-structure" class="internal xref">Directory Structure</a></p>
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-policy-store-api-2" class="internal xref">Policy Store API</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1">
-                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-required-files-and-director" class="internal xref">Required Files and Directories</a></p>
+                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-api-request" class="internal xref">API Request</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
-                <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-optional-directories" class="internal xref">Optional Directories</a></p>
+                <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-api-response" class="internal xref">API Response</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.3">
+                <p id="section-toc.1-1.4.2.3.1"><a href="#section-4.3" class="auto internal xref">4.3</a>.  <a href="#name-authzen-pdp-metadata-regist" class="internal xref">AuthZen PDP Metadata Registry</a></p>
 </li>
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
-            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-file-naming-and-content-req" class="internal xref">File Naming and Content Requirements</a></p>
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-policy-store-directory-stru" class="internal xref">Policy Store Directory Structure</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.1">
-                <p id="section-toc.1-1.5.2.1.1"><a href="#section-5.1" class="auto internal xref">5.1</a>.  <a href="#name-policy-and-template-files" class="internal xref">Policy and Template Files</a></p>
+                <p id="section-toc.1-1.5.2.1.1"><a href="#section-5.1" class="auto internal xref">5.1</a>.  <a href="#name-required-files-and-director" class="internal xref">Required Files and Directories</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.2">
-                <p id="section-toc.1-1.5.2.2.1"><a href="#section-5.2" class="auto internal xref">5.2</a>.  <a href="#name-policy-identifiers" class="internal xref">Policy Identifiers</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.3">
-                <p id="section-toc.1-1.5.2.3.1"><a href="#section-5.3" class="auto internal xref">5.3</a>.  <a href="#name-entity-files" class="internal xref">Entity Files</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.4">
-                <p id="section-toc.1-1.5.2.4.1"><a href="#section-5.4" class="auto internal xref">5.4</a>.  <a href="#name-trusted-issuer-files" class="internal xref">Trusted Issuer Files</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.5">
-                <p id="section-toc.1-1.5.2.5.1"><a href="#section-5.5" class="auto internal xref">5.5</a>.  <a href="#name-schema-files" class="internal xref">Schema Files</a></p>
+                <p id="section-toc.1-1.5.2.2.1"><a href="#section-5.2" class="auto internal xref">5.2</a>.  <a href="#name-optional-directories" class="internal xref">Optional Directories</a></p>
 </li>
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
-            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-metadata" class="internal xref">Metadata</a></p>
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-file-naming-and-content-req" class="internal xref">File Naming and Content Requirements</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1">
-                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-structure" class="internal xref">Structure</a></p>
-<ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1.2.1">
-                    <p id="section-toc.1-1.6.2.1.2.1.1"><a href="#section-6.1.1" class="auto internal xref">6.1.1</a>.  <a href="#name-policy_store-object" class="internal xref">policy_store Object</a></p>
+                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-policy-and-template-files" class="internal xref">Policy and Template Files</a></p>
 </li>
-                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1.2.2">
-                    <p id="section-toc.1-1.6.2.1.2.2.1"><a href="#section-6.1.2" class="auto internal xref">6.1.2</a>.  <a href="#name-example-non-normative" class="internal xref">Example (non-normative)</a></p>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.2">
+                <p id="section-toc.1-1.6.2.2.1"><a href="#section-6.2" class="auto internal xref">6.2</a>.  <a href="#name-policy-identifiers" class="internal xref">Policy Identifiers</a></p>
 </li>
-                </ul>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3">
+                <p id="section-toc.1-1.6.2.3.1"><a href="#section-6.3" class="auto internal xref">6.3</a>.  <a href="#name-entity-files" class="internal xref">Entity Files</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.4">
+                <p id="section-toc.1-1.6.2.4.1"><a href="#section-6.4" class="auto internal xref">6.4</a>.  <a href="#name-trusted-issuer-files" class="internal xref">Trusted Issuer Files</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.5">
+                <p id="section-toc.1-1.6.2.5.1"><a href="#section-6.5" class="auto internal xref">6.5</a>.  <a href="#name-schema-files" class="internal xref">Schema Files</a></p>
 </li>
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
-            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-trusted-issuers" class="internal xref">Trusted Issuers</a></p>
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-metadata" class="internal xref">Metadata</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1">
-                <p id="section-toc.1-1.7.2.1.1"><a href="#section-7.1" class="auto internal xref">7.1</a>.  <a href="#name-structure-2" class="internal xref">Structure</a></p>
+                <p id="section-toc.1-1.7.2.1.1"><a href="#section-7.1" class="auto internal xref">7.1</a>.  <a href="#name-structure" class="internal xref">Structure</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1.2.1">
-                    <p id="section-toc.1-1.7.2.1.2.1.1"><a href="#section-7.1.1" class="auto internal xref">7.1.1</a>.  <a href="#name-token_metadata-entry" class="internal xref">token_metadata Entry</a></p>
+                    <p id="section-toc.1-1.7.2.1.2.1.1"><a href="#section-7.1.1" class="auto internal xref">7.1.1</a>.  <a href="#name-policy_store-object" class="internal xref">policy_store Object</a></p>
 </li>
                   <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1.2.2">
-                    <p id="section-toc.1-1.7.2.1.2.2.1"><a href="#section-7.1.2" class="auto internal xref">7.1.2</a>.  <a href="#name-example-non-normative-2" class="internal xref">Example (non-normative)</a></p>
+                    <p id="section-toc.1-1.7.2.1.2.2.1"><a href="#section-7.1.2" class="auto internal xref">7.1.2</a>.  <a href="#name-example-non-normative" class="internal xref">Example (non-normative)</a></p>
 </li>
                 </ul>
 </li>
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
-            <p id="section-toc.1-1.8.1"><a href="#section-8" class="auto internal xref">8</a>.  <a href="#name-archive-format" class="internal xref">Archive Format</a></p>
+            <p id="section-toc.1-1.8.1"><a href="#section-8" class="auto internal xref">8</a>.  <a href="#name-trusted-issuers" class="internal xref">Trusted Issuers</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.1">
-                <p id="section-toc.1-1.8.2.1.1"><a href="#section-8.1" class="auto internal xref">8.1</a>.  <a href="#name-requirements" class="internal xref">Requirements</a></p>
+                <p id="section-toc.1-1.8.2.1.1"><a href="#section-8.1" class="auto internal xref">8.1</a>.  <a href="#name-structure-2" class="internal xref">Structure</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.1.2.1">
+                    <p id="section-toc.1-1.8.2.1.2.1.1"><a href="#section-8.1.1" class="auto internal xref">8.1.1</a>.  <a href="#name-token_metadata-entry" class="internal xref">token_metadata Entry</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.1.2.2">
+                    <p id="section-toc.1-1.8.2.1.2.2.1"><a href="#section-8.1.2" class="auto internal xref">8.1.2</a>.  <a href="#name-example-non-normative-2" class="internal xref">Example (non-normative)</a></p>
+</li>
+                </ul>
 </li>
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
-            <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-policy-store-loading" class="internal xref">Policy Store Loading</a></p>
-</li>
-          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
-            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-relationship-to-authzen" class="internal xref">Relationship to AuthZEN</a></p>
-</li>
-          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11">
-            <p id="section-toc.1-1.11.1"><a href="#section-11" class="auto internal xref">11</a>. <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
-</li>
-          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
-            <p id="section-toc.1-1.12.1"><a href="#section-12" class="auto internal xref">12</a>. <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
-</li>
-          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13">
-            <p id="section-toc.1-1.13.1"><a href="#section-13" class="auto internal xref">13</a>. <a href="#name-references" class="internal xref">References</a></p>
+            <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-archive-format" class="internal xref">Archive Format</a></p>
 <ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.1">
-                <p id="section-toc.1-1.13.2.1.1"><a href="#section-13.1" class="auto internal xref">13.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.2">
-                <p id="section-toc.1-1.13.2.2.1"><a href="#section-13.2" class="auto internal xref">13.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1">
+                <p id="section-toc.1-1.9.2.1.1"><a href="#section-9.1" class="auto internal xref">9.1</a>.  <a href="#name-requirements" class="internal xref">Requirements</a></p>
 </li>
             </ul>
 </li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
+            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-policy-store-loading" class="internal xref">Policy Store Loading</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11">
+            <p id="section-toc.1-1.11.1"><a href="#section-11" class="auto internal xref">11</a>. <a href="#name-relationship-to-authzen" class="internal xref">Relationship to AuthZEN</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
+            <p id="section-toc.1-1.12.1"><a href="#section-12" class="auto internal xref">12</a>. <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.1">
+                <p id="section-toc.1-1.12.2.1.1"><a href="#section-12.1" class="auto internal xref">12.1</a>.  <a href="#name-policy-store-2" class="internal xref">Policy store</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.2">
+                <p id="section-toc.1-1.12.2.2.1"><a href="#section-12.2" class="auto internal xref">12.2</a>.  <a href="#name-policy-store-api-3" class="internal xref">Policy store API</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13">
+            <p id="section-toc.1-1.13.1"><a href="#section-13" class="auto internal xref">13</a>. <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+</li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14">
-            <p id="section-toc.1-1.14.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-json-schemas-informative" class="internal xref">JSON Schemas (Informative)</a></p>
+            <p id="section-toc.1-1.14.1"><a href="#section-14" class="auto internal xref">14</a>. <a href="#name-references" class="internal xref">References</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.1">
-                <p id="section-toc.1-1.14.2.1.1"><a href="#appendix-A.1" class="auto internal xref">A.1</a>.  <a href="#name-metadatajson-schema" class="internal xref">metadata.json Schema</a></p>
+                <p id="section-toc.1-1.14.2.1.1"><a href="#section-14.1" class="auto internal xref">14.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.2">
-                <p id="section-toc.1-1.14.2.2.1"><a href="#appendix-A.2" class="auto internal xref">A.2</a>.  <a href="#name-trusted-issuer-schema" class="internal xref">Trusted Issuer Schema</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.3">
-                <p id="section-toc.1-1.14.2.3.1"><a href="#appendix-A.3" class="auto internal xref">A.3</a>.  <a href="#name-entity-file-schema" class="internal xref">Entity File Schema</a></p>
+                <p id="section-toc.1-1.14.2.2.1"><a href="#section-14.2" class="auto internal xref">14.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
 </li>
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15">
-            <p id="section-toc.1-1.15.1"><a href="#appendix-B" class="auto internal xref">Appendix B</a>.  <a href="#name-policy-engine-examples-info" class="internal xref">Policy Engine Examples (Informative)</a></p>
+            <p id="section-toc.1-1.15.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-json-schemas-informative" class="internal xref">JSON Schemas (Informative)</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.1">
-                <p id="section-toc.1-1.15.2.1.1"><a href="#appendix-B.1" class="auto internal xref">B.1</a>.  <a href="#name-cedar-pdp-example" class="internal xref">Cedar PDP Example</a></p>
+                <p id="section-toc.1-1.15.2.1.1"><a href="#appendix-A.1" class="auto internal xref">A.1</a>.  <a href="#name-metadatajson-schema" class="internal xref">metadata.json Schema</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.2">
-                <p id="section-toc.1-1.15.2.2.1"><a href="#appendix-B.2" class="auto internal xref">B.2</a>.  <a href="#name-cerbos-pdp-example" class="internal xref">Cerbos PDP Example</a></p>
+                <p id="section-toc.1-1.15.2.2.1"><a href="#appendix-A.2" class="auto internal xref">A.2</a>.  <a href="#name-trusted-issuer-schema" class="internal xref">Trusted Issuer Schema</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.3">
+                <p id="section-toc.1-1.15.2.3.1"><a href="#appendix-A.3" class="auto internal xref">A.3</a>.  <a href="#name-entity-file-schema" class="internal xref">Entity File Schema</a></p>
 </li>
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16">
-            <p id="section-toc.1-1.16.1"><a href="#appendix-C" class="auto internal xref">Appendix C</a>.  <a href="#name-open-issues-informative" class="internal xref">Open Issues (Informative)</a></p>
+            <p id="section-toc.1-1.16.1"><a href="#appendix-B" class="auto internal xref">Appendix B</a>.  <a href="#name-policy-engine-examples-info" class="internal xref">Policy Engine Examples (Informative)</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16.2.1">
+                <p id="section-toc.1-1.16.2.1.1"><a href="#appendix-B.1" class="auto internal xref">B.1</a>.  <a href="#name-cedar-pdp-example" class="internal xref">Cedar PDP Example</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16.2.2">
+                <p id="section-toc.1-1.16.2.2.1"><a href="#appendix-B.2" class="auto internal xref">B.2</a>.  <a href="#name-cerbos-pdp-example" class="internal xref">Cerbos PDP Example</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.17">
-            <p id="section-toc.1-1.17.1"><a href="#appendix-D" class="auto internal xref">Appendix D</a>.  <a href="#name-notices" class="internal xref">Notices</a></p>
+            <p id="section-toc.1-1.17.1"><a href="#appendix-C" class="auto internal xref">Appendix C</a>.  <a href="#name-open-issues-informative" class="internal xref">Open Issues (Informative)</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.18">
-            <p id="section-toc.1-1.18.1"><a href="#appendix-E" class="auto internal xref"></a><a href="#name-contributors" class="internal xref">Contributors</a></p>
+            <p id="section-toc.1-1.18.1"><a href="#appendix-D" class="auto internal xref">Appendix D</a>.  <a href="#name-notices" class="internal xref">Notices</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.19">
-            <p id="section-toc.1-1.19.1"><a href="#appendix-F" class="auto internal xref"></a><a href="#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
+            <p id="section-toc.1-1.19.1"><a href="#appendix-E" class="auto internal xref"></a><a href="#name-contributors" class="internal xref">Contributors</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.20">
+            <p id="section-toc.1-1.20.1"><a href="#appendix-F" class="auto internal xref"></a><a href="#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
 </li>
         </ul>
 </nav>
@@ -1418,7 +1449,7 @@ li > p:last-of-type:only-child {
 <a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
       </h2>
 <p id="section-1-1">Policy Decision Points (PDPs) evaluate authorization requests using policies, schema, and supporting configuration. PDP implementations — including engines such as Cedar (<span>[<a href="#CEDAR" class="cite xref">CEDAR</a>]</span>) and Cerbos (<span>[<a href="#CERBOS" class="cite xref">CERBOS</a>]</span>) — do not today share a common way to package and version those artifacts together. In practice, policies are written against a specific schema and evaluated with a consistent set of default entities and trusted token issuers. Without a standard packaging format, organizations adopt ad hoc conventions, which impedes portability, auditability, and interoperability among PDPs and third-party tools.<a href="#section-1-1" class="pilcrow">¶</a></p>
-<p id="section-1-2">The OpenID AuthZEN Working Group defines protocols and patterns for authorization interoperability, including the Authorization API (<span>[<a href="#AUTHZEN-API" class="cite xref">AUTHZEN-API</a>]</span>). This specification complements AuthZEN by defining a portable, PDP neutral, self-contained <strong>policy store</strong> format that any conforming PDP or tool MAY load, validate, and exchange without proprietary layout conventions.<a href="#section-1-2" class="pilcrow">¶</a></p>
+<p id="section-1-2">The OpenID AuthZEN Working Group defines protocols and patterns for authorization interoperability, including the Authorization API (<span>[<a href="#AUTHZEN-API" class="cite xref">AUTHZEN-API</a>]</span>). This specification complements AuthZEN by defining policy store API and a portable, PDP neutral, self-contained <strong>policy store</strong> format that any conforming PDP or tool MAY load, validate, and exchange without proprietary layout conventions.<a href="#section-1-2" class="pilcrow">¶</a></p>
 <p id="section-1-3">This document defines version 1.0 of the AuthZEN Policy Store Format.<a href="#section-1-3" class="pilcrow">¶</a></p>
 </section>
 </div>
@@ -1474,43 +1505,152 @@ li > p:last-of-type:only-child {
       <h2 id="name-overview">
 <a href="#section-3" class="section-number selfRef">3. </a><a href="#name-overview" class="section-name selfRef">Overview</a>
       </h2>
-<p id="section-3-1">A policy store bundles the artifacts a PDP needs to evaluate authorization requests against a known schema and configuration baseline:<a href="#section-3-1" class="pilcrow">¶</a></p>
-<ul class="normal">
-<li class="normal" id="section-3-2.1">
-          <p id="section-3-2.1.1">Policy engine declaration in <code>metadata.json</code><a href="#section-3-2.1.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="section-3-2.2">
-          <p id="section-3-2.2.1">Policies (one policy document per file under <code>policies/</code>)<a href="#section-3-2.2.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="section-3-2.3">
-          <p id="section-3-2.3.1">Optional schema (<code>schema/</code>)<a href="#section-3-2.3.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="section-3-2.4">
-          <p id="section-3-2.4.1">Optional policy templates (<code>templates/</code>)<a href="#section-3-2.4.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="section-3-2.5">
-          <p id="section-3-2.5.1">Optional default entities (<code>entities/</code>)<a href="#section-3-2.5.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="section-3-2.6">
-          <p id="section-3-2.6.1">Optional trusted issuer configuration (<code>trusted-issuers/</code>)<a href="#section-3-2.6.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="section-3-2.7">
-          <p id="section-3-2.7.1">Required metadata (<code>metadata.json</code>)<a href="#section-3-2.7.1" class="pilcrow">¶</a></p>
-</li>
-      </ul>
-<p id="section-3-3">The syntax and semantics of policy documents, schema files, and entity types are defined by the declared <strong>policy engine</strong>. This specification defines the container layout, metadata, and interchange formats only.<a href="#section-3-3" class="pilcrow">¶</a></p>
-<p id="section-3-4">Implementations MAY support either the Directory Format or the Archive Format, or both. Tools that produce or consume policy stores SHOULD support conversion between formats without loss of content.<a href="#section-3-4" class="pilcrow">¶</a></p>
-<p id="section-3-5">The Archive Format is a ZIP archive containing the same relative paths as the Directory Format. Archive files MUST use the <code>.cjar</code> extension.<a href="#section-3-5" class="pilcrow">¶</a></p>
+<div id="policy-store-api">
+<section id="section-3.1">
+        <h3 id="name-policy-store-api">
+<a href="#section-3.1" class="section-number selfRef">3.1. </a><a href="#name-policy-store-api" class="section-name selfRef">Policy store API</a>
+        </h3>
+<p id="section-3.1-1">The <strong><code>/policystore</code></strong> endpoint is a POST‑only HTTP API that accepts a <strong><code>.cjar</code></strong> (Constraint JAR) file containing a policy store. This API enables PDP administrators to upload the updated versions of the policy stores. API does not expose HTTP methods that allow updates or deletion of the existing policy stores. This ensures that the policy stores are treated as immutable stores and can be versioned and rolled back easily.<a href="#section-3.1-1" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="directory-structure">
+<div id="policy-store">
+<section id="section-3.2">
+        <h3 id="name-policy-store">
+<a href="#section-3.2" class="section-number selfRef">3.2. </a><a href="#name-policy-store" class="section-name selfRef">Policy store</a>
+        </h3>
+<p id="section-3.2-1">A <strong>policy store</strong> bundles together the artifacts that a PDP needs to evaluate authorization requests against a known schema and configuration baseline. These artifacts include:<a href="#section-3.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.2-2.1">
+            <p id="section-3.2-2.1.1">Policy engine declaration in <code>metadata.json</code><a href="#section-3.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.2-2.2">
+            <p id="section-3.2-2.2.1">Policies (one policy document per file under <code>policies/</code>)<a href="#section-3.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.2-2.3">
+            <p id="section-3.2-2.3.1">Optional schema (<code>schema/</code>)<a href="#section-3.2-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.2-2.4">
+            <p id="section-3.2-2.4.1">Optional policy templates (<code>templates/</code>)<a href="#section-3.2-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.2-2.5">
+            <p id="section-3.2-2.5.1">Optional default entities (<code>entities/</code>)<a href="#section-3.2-2.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.2-2.6">
+            <p id="section-3.2-2.6.1">Optional trusted issuer configuration (<code>trusted-issuers/</code>)<a href="#section-3.2-2.6.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.2-2.7">
+            <p id="section-3.2-2.7.1">Required metadata (<code>metadata.json</code>)<a href="#section-3.2-2.7.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-3.2-3">The syntax and semantics of policy documents, schema files, and entity types are defined by the declared <strong>policy engine</strong>. This specification defines the container layout, metadata, and interchange formats only.<a href="#section-3.2-3" class="pilcrow">¶</a></p>
+<p id="section-3.2-4">Implementations MAY support either the Directory Format or the Archive Format, or both. Tools that produce or consume policy stores SHOULD support conversion between formats without loss of content.<a href="#section-3.2-4" class="pilcrow">¶</a></p>
+<p id="section-3.2-5">The Archive Format is a ZIP archive containing the same relative paths as the Directory Format. Archive files MUST use the <code>.cjar</code> extension.<a href="#section-3.2-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="policy-store-api-1">
 <section id="section-4">
-      <h2 id="name-directory-structure">
-<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-directory-structure" class="section-name selfRef">Directory Structure</a>
+      <h2 id="name-policy-store-api-2">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-policy-store-api-2" class="section-name selfRef">Policy Store API</a>
       </h2>
-<p id="section-4-1">The root of a policy store (directory or archive) is referred to as the <strong>policy store root</strong>. The following layout is REQUIRED for conformant policy stores:<a href="#section-4-1" class="pilcrow">¶</a></p>
+<p id="section-4-1">Policy store API defines <code>/policystore</code> endpoint for uploading the policy store.<a href="#section-4-1" class="pilcrow">¶</a></p>
+<div id="api-request">
+<section id="section-4.1">
+        <h3 id="name-api-request">
+<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-api-request" class="section-name selfRef">API Request</a>
+        </h3>
+<p id="section-4.1-1">The <strong><code>/policystore</code></strong> endpoint is a POST‑only HTTP API that accepts a <strong><code>.cjar</code></strong> (Constraint JAR) file containing a policy store. The request body must be a multipart/form‑data upload with the following parts:<a href="#section-4.1-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-4.1-2.1">
+            <p id="section-4.1-2.1.1"><strong>file</strong>: The <code>.cjar</code> archive.<a href="#section-4.1-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-4.1-2.2">
+            <p id="section-4.1-2.2.1"><strong>metadata</strong>: A JSON object providing:<a href="#section-4.1-2.2.1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-4.1-2.2.2.1">
+                <p id="section-4.1-2.2.2.1.1"><code>version</code> (string): The version of the policy store.<a href="#section-4.1-2.2.2.1.1" class="pilcrow">¶</a></p>
+</li>
+              <li class="normal" id="section-4.1-2.2.2.2">
+                <p id="section-4.1-2.2.2.2.1"><code>created_timestamp</code> (string, ISO‑8601): The creation date‑time of the uploaded policy store.<a href="#section-4.1-2.2.2.2.1" class="pilcrow">¶</a></p>
+</li>
+            </ul>
+</li>
+        </ul>
+<p id="section-4.1-3"><strong>Example Request</strong>:<a href="#section-4.1-3" class="pilcrow">¶</a></p>
+<div class="lang-http sourcecode" id="section-4.1-4">
+<pre>
+POST /policystore HTTP/1.1
+Host: api.example.com
+Content-Type: multipart/form-data; boundary=---XYZ
+
+-----XYZ
+Content-Disposition: form-data; name="file"; filename="store.cjar"
+Content-Type: application/zip
+
+&lt;binary .cjar content&gt;
+-----XYZ
+Content-Disposition: form-data; name="metadata"
+Content-Type: application/json
+
+{"version":"1.0.0","created_timestamp":"2026-07-15T10:30:00Z"}
+-----XYZ--
+</pre><a href="#section-4.1-4" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="api-response">
+<section id="section-4.2">
+        <h3 id="name-api-response">
+<a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-api-response" class="section-name selfRef">API Response</a>
+        </h3>
+<p id="section-4.2-1">The server validates the uploaded file and metadata. On success it stores the file and returns <strong>201 Created</strong> with a JSON body containing the assigned identifier. On validation failure it returns <strong>400 Bad Request</strong> with an error description.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
+<p id="section-4.2-2"><strong>Example Response (Success)</strong>:<a href="#section-4.2-2" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-4.2-3">
+<pre>
+{
+  "id": "store-12345",
+  "message": "Policy store uploaded successfully."
+}
+</pre><a href="#section-4.2-3" class="pilcrow">¶</a>
+</div>
+<p id="section-4.2-4"><strong>Example Response (Error)</strong>:<a href="#section-4.2-4" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-4.2-5">
+<pre>
+{
+  "error": "Invalid metadata.version does not match archive."
+}
+</pre><a href="#section-4.2-5" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="authzen-pdp-metadata-registry">
+<section id="section-4.3">
+        <h3 id="name-authzen-pdp-metadata-regist">
+<a href="#section-4.3" class="section-number selfRef">4.3. </a><a href="#name-authzen-pdp-metadata-regist" class="section-name selfRef">AuthZen PDP Metadata Registry</a>
+        </h3>
+<p id="section-4.3-1">The AuthZen working group has defined a metadata registry for OpenID AuthZEN Policy Decision Points (PDPs), <a href="https://openid.github.io/authzen/#name-authzen-policy-decision-poi">[AUTHZEN-PDP-METADATA]</a>. This document extends that registry with requirement to add policy store API to the registry with following metadata.<a href="#section-4.3-1" class="pilcrow">¶</a></p>
+<p id="section-4.3-2">Metadata Name:
+<code>policy_store_endpoint</code><a href="#section-4.3-2" class="pilcrow">¶</a></p>
+<p id="section-4.3-3">Metadata Description:
+Base URL of the Policy Decision Point's Policy store endpoint<a href="#section-4.3-3" class="pilcrow">¶</a></p>
+<p id="section-4.3-4">Change Controller:
+OpenID Foundation AuthZEN Working Group<a href="#section-4.3-4" class="pilcrow">¶</a></p>
+<p id="section-4.3-5">mailto:openid-specs-authzen@lists.openid.net<a href="#section-4.3-5" class="pilcrow">¶</a></p>
+<p id="section-4.3-6">Specification Document(s):
+Current section of this document<a href="#section-4.3-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="policy-store-directory-structure">
+<section id="section-5">
+      <h2 id="name-policy-store-directory-stru">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-policy-store-directory-stru" class="section-name selfRef">Policy Store Directory Structure</a>
+      </h2>
+<p id="section-5-1">The root of a policy store (directory or archive) is referred to as the <strong>policy store root</strong>. The following layout is REQUIRED for conformant policy stores:<a href="#section-5-1" class="pilcrow">¶</a></p>
 <span id="name-policy-store-directory-layo"></span><figure id="figure-1">
-        <div class="alignLeft art-ascii-art art-text artwork" id="section-4-2.1">
+        <div class="alignLeft art-ascii-art art-text artwork" id="section-5-2.1">
 <pre>
 policy-store-root/
 ├── metadata.json
@@ -1530,54 +1670,54 @@ policy-store-root/
 <a href="#name-policy-store-directory-layo" class="selfRef">Policy Store Directory Layout</a>
         </figcaption></figure>
 <div id="required-files-and-directories">
-<section id="section-4.1">
+<section id="section-5.1">
         <h3 id="name-required-files-and-director">
-<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-required-files-and-director" class="section-name selfRef">Required Files and Directories</a>
+<a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-required-files-and-director" class="section-name selfRef">Required Files and Directories</a>
         </h3>
-<span class="break"></span><dl class="dlParallel" id="section-4.1-1">
-          <dt id="section-4.1-1.1">
+<span class="break"></span><dl class="dlParallel" id="section-5.1-1">
+          <dt id="section-5.1-1.1">
 <code>metadata.json</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-4.1-1.2">
-            <p id="section-4.1-1.2.1">REQUIRED at the policy store root. Contains policy store metadata as defined in Metadata (<a href="#metadata" class="auto internal xref">Section 6</a>).<a href="#section-4.1-1.2.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-5.1-1.2">
+            <p id="section-5.1-1.2.1">REQUIRED at the policy store root. Contains policy store metadata as defined in Metadata (<a href="#metadata" class="auto internal xref">Section 7</a>).<a href="#section-5.1-1.2.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-4.1-1.3">
+<dt id="section-5.1-1.3">
 <code>policies/</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-4.1-1.4">
-            <p id="section-4.1-1.4.1">REQUIRED directory. Contains one or more policy files. Each file MUST contain exactly one policy document in a format accepted by the declared policy engine.<a href="#section-4.1-1.4.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-5.1-1.4">
+            <p id="section-5.1-1.4.1">REQUIRED directory. Contains one or more policy files. Each file MUST contain exactly one policy document in a format accepted by the declared policy engine.<a href="#section-5.1-1.4.1" class="pilcrow">¶</a></p>
 </dd>
         <dd class="break"></dd>
 </dl>
 </section>
 </div>
 <div id="optional-directories">
-<section id="section-4.2">
+<section id="section-5.2">
         <h3 id="name-optional-directories">
-<a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-optional-directories" class="section-name selfRef">Optional Directories</a>
+<a href="#section-5.2" class="section-number selfRef">5.2. </a><a href="#name-optional-directories" class="section-name selfRef">Optional Directories</a>
         </h3>
-<span class="break"></span><dl class="dlParallel" id="section-4.2-1">
-          <dt id="section-4.2-1.1">
+<span class="break"></span><dl class="dlParallel" id="section-5.2-1">
+          <dt id="section-5.2-1.1">
 <code>schema/</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-4.2-1.2">
-            <p id="section-4.2-1.2.1">OPTIONAL. When present, contains one or more schema artifacts for the declared policy engine. File names and formats are defined by the policy engine documentation. PDPs that require schema for evaluation MUST reject a policy store that omits <code>schema/</code> when schema is required for the policies it contains.<a href="#section-4.2-1.2.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-5.2-1.2">
+            <p id="section-5.2-1.2.1">OPTIONAL. When present, contains one or more schema artifacts for the declared policy engine. File names and formats are defined by the policy engine documentation. PDPs that require schema for evaluation MUST reject a policy store that omits <code>schema/</code> when schema is required for the policies it contains.<a href="#section-5.2-1.2.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-4.2-1.3">
+<dt id="section-5.2-1.3">
 <code>templates/</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-4.2-1.4">
-            <p id="section-4.2-1.4.1">OPTIONAL. Contains policy template documents when supported by the policy engine. Each file MUST contain exactly one template document.<a href="#section-4.2-1.4.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-5.2-1.4">
+            <p id="section-5.2-1.4.1">OPTIONAL. Contains policy template documents when supported by the policy engine. Each file MUST contain exactly one template document.<a href="#section-5.2-1.4.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-4.2-1.5">
+<dt id="section-5.2-1.5">
 <code>entities/</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-4.2-1.6">
-            <p id="section-4.2-1.6.1">OPTIONAL. Contains default entity definition files as defined in Default Entities (<a href="#default-entities" class="auto internal xref">Section 5.3</a>).<a href="#section-4.2-1.6.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-5.2-1.6">
+            <p id="section-5.2-1.6.1">OPTIONAL. Contains default entity definition files as defined in Default Entities (<a href="#default-entities" class="auto internal xref">Section 6.3</a>).<a href="#section-5.2-1.6.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-4.2-1.7">
+<dt id="section-5.2-1.7">
 <code>trusted-issuers/</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-4.2-1.8">
-            <p id="section-4.2-1.8.1">OPTIONAL. Contains trusted issuer configuration files as defined in Trusted Issuers (<a href="#trusted-issuers" class="auto internal xref">Section 7</a>).<a href="#section-4.2-1.8.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-5.2-1.8">
+            <p id="section-5.2-1.8.1">OPTIONAL. Contains trusted issuer configuration files as defined in Trusted Issuers (<a href="#trusted-issuers" class="auto internal xref">Section 8</a>).<a href="#section-5.2-1.8.1" class="pilcrow">¶</a></p>
 </dd>
         <dd class="break"></dd>
 </dl>
@@ -1586,191 +1726,191 @@ policy-store-root/
 </section>
 </div>
 <div id="file-naming-and-content-requirements">
-<section id="section-5">
+<section id="section-6">
       <h2 id="name-file-naming-and-content-req">
-<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-file-naming-and-content-req" class="section-name selfRef">File Naming and Content Requirements</a>
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-file-naming-and-content-req" class="section-name selfRef">File Naming and Content Requirements</a>
       </h2>
 <div id="policy-and-template-files">
-<section id="section-5.1">
+<section id="section-6.1">
         <h3 id="name-policy-and-template-files">
-<a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-policy-and-template-files" class="section-name selfRef">Policy and Template Files</a>
+<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-policy-and-template-files" class="section-name selfRef">Policy and Template Files</a>
         </h3>
-<p id="section-5.1-1">Files under <code>policies/</code> and <code>templates/</code> MUST:<a href="#section-5.1-1" class="pilcrow">¶</a></p>
+<p id="section-6.1-1">Files under <code>policies/</code> and <code>templates/</code> MUST:<a href="#section-6.1-1" class="pilcrow">¶</a></p>
 <ul class="normal">
-<li class="normal" id="section-5.1-2.1">
-            <p id="section-5.1-2.1.1">Contain exactly one policy or template document, respectively, in a format valid for the <code>policy_engine</code> declared in <code>metadata.json</code>.<a href="#section-5.1-2.1.1" class="pilcrow">¶</a></p>
+<li class="normal" id="section-6.1-2.1">
+            <p id="section-6.1-2.1.1">Contain exactly one policy or template document, respectively, in a format valid for the <code>policy_engine</code> declared in <code>metadata.json</code>.<a href="#section-6.1-2.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-5.1-2.2">
-            <p id="section-5.1-2.2.1">Include a stable unique identifier for that policy or template within the policy store, expressed in the manner required by the policy engine (see Policy Identifiers (<a href="#policy-identifiers" class="auto internal xref">Section 5.2</a>)).<a href="#section-5.1-2.2.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-6.1-2.2">
+            <p id="section-6.1-2.2.1">Include a stable unique identifier for that policy or template within the policy store, expressed in the manner required by the policy engine (see Policy Identifiers (<a href="#policy-identifiers" class="auto internal xref">Section 6.2</a>)).<a href="#section-6.1-2.2.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
-<p id="section-5.1-3">Filenames SHOULD use extensions conventional for the declared policy engine. Filenames SHOULD be descriptive but are not required to match policy identifiers.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
+<p id="section-6.1-3">Filenames SHOULD use extensions conventional for the declared policy engine. Filenames SHOULD be descriptive but are not required to match policy identifiers.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="policy-identifiers">
-<section id="section-5.2">
+<section id="section-6.2">
         <h3 id="name-policy-identifiers">
-<a href="#section-5.2" class="section-number selfRef">5.2. </a><a href="#name-policy-identifiers" class="section-name selfRef">Policy Identifiers</a>
+<a href="#section-6.2" class="section-number selfRef">6.2. </a><a href="#name-policy-identifiers" class="section-name selfRef">Policy Identifiers</a>
         </h3>
-<p id="section-5.2-1">Each policy and template in a policy store MUST be uniquely identifiable within that store. How identifiers are assigned and embedded is <strong>policy engine specific</strong>. For example, Cedar PDPs typically require an <code>@id()</code> annotation in each policy file; Cerbos PDPs identify policies by resource kind, name, and version fields within YAML or JSON policy documents.<a href="#section-5.2-1" class="pilcrow">¶</a></p>
-<p id="section-5.2-2">Tools that are policy engine agnostic MUST preserve policy files without altering engine-specific identifiers.<a href="#section-5.2-2" class="pilcrow">¶</a></p>
+<p id="section-6.2-1">Each policy and template in a policy store MUST be uniquely identifiable within that store. How identifiers are assigned and embedded is <strong>policy engine specific</strong>. For example, Cedar PDPs typically require an <code>@id()</code> annotation in each policy file; Cerbos PDPs identify policies by resource kind, name, and version fields within YAML or JSON policy documents.<a href="#section-6.2-1" class="pilcrow">¶</a></p>
+<p id="section-6.2-2">Tools that are policy engine agnostic MUST preserve policy files without altering engine-specific identifiers.<a href="#section-6.2-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="default-entities">
-<section id="section-5.3">
+<section id="section-6.3">
         <h3 id="name-entity-files">
-<a href="#section-5.3" class="section-number selfRef">5.3. </a><a href="#name-entity-files" class="section-name selfRef">Entity Files</a>
+<a href="#section-6.3" class="section-number selfRef">6.3. </a><a href="#name-entity-files" class="section-name selfRef">Entity Files</a>
         </h3>
-<p id="section-5.3-1">Files under <code>entities/</code> MUST:<a href="#section-5.3-1" class="pilcrow">¶</a></p>
+<p id="section-6.3-1">Files under <code>entities/</code> MUST:<a href="#section-6.3-1" class="pilcrow">¶</a></p>
 <ul class="normal">
-<li class="normal" id="section-5.3-2.1">
-            <p id="section-5.3-2.1.1">Use the <code>.json</code> file extension.<a href="#section-5.3-2.1.1" class="pilcrow">¶</a></p>
+<li class="normal" id="section-6.3-2.1">
+            <p id="section-6.3-2.1.1">Use the <code>.json</code> file extension.<a href="#section-6.3-2.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-5.3-2.2">
-            <p id="section-5.3-2.2.1">Contain a JSON (<span>[<a href="#RFC8259" class="cite xref">RFC8259</a>]</span>) array of entity definitions, or a single entity definition object (which implementations MAY normalize to an array).<a href="#section-5.3-2.2.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-6.3-2.2">
+            <p id="section-6.3-2.2.1">Contain a JSON (<span>[<a href="#RFC8259" class="cite xref">RFC8259</a>]</span>) array of entity definitions, or a single entity definition object (which implementations MAY normalize to an array).<a href="#section-6.3-2.2.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
-<p id="section-5.3-3">Each entity definition MUST include:<a href="#section-5.3-3" class="pilcrow">¶</a></p>
-<span class="break"></span><dl class="dlParallel" id="section-5.3-4">
-          <dt id="section-5.3-4.1">
+<p id="section-6.3-3">Each entity definition MUST include:<a href="#section-6.3-3" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-6.3-4">
+          <dt id="section-6.3-4.1">
 <code>uid</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-5.3-4.2">
-            <p id="section-5.3-4.2.1">REQUIRED object with <code>type</code> and <code>id</code> string fields identifying the entity in the policy engine's type system.<a href="#section-5.3-4.2.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-6.3-4.2">
+            <p id="section-6.3-4.2.1">REQUIRED object with <code>type</code> and <code>id</code> string fields identifying the entity in the policy engine's type system.<a href="#section-6.3-4.2.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-5.3-4.3">
+<dt id="section-6.3-4.3">
 <code>attrs</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-5.3-4.4">
-            <p id="section-5.3-4.4.1">REQUIRED object containing entity attributes.<a href="#section-5.3-4.4.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-6.3-4.4">
+            <p id="section-6.3-4.4.1">REQUIRED object containing entity attributes.<a href="#section-6.3-4.4.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-5.3-4.5">
+<dt id="section-6.3-4.5">
 <code>parents</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-5.3-4.6">
-            <p id="section-5.3-4.6.1">OPTIONAL array of parent entity references for hierarchical relationships. Each reference is an object with <code>type</code> and <code>id</code> string fields.<a href="#section-5.3-4.6.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-6.3-4.6">
+            <p id="section-6.3-4.6.1">OPTIONAL array of parent entity references for hierarchical relationships. Each reference is an object with <code>type</code> and <code>id</code> string fields.<a href="#section-6.3-4.6.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-5.3-4.7">
+<dt id="section-6.3-4.7">
 <code>tags</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-5.3-4.8">
-            <p id="section-5.3-4.8.1">OPTIONAL object of string key-value metadata.<a href="#section-5.3-4.8.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-6.3-4.8">
+            <p id="section-6.3-4.8.1">OPTIONAL object of string key-value metadata.<a href="#section-6.3-4.8.1" class="pilcrow">¶</a></p>
 </dd>
         <dd class="break"></dd>
 </dl>
-<p id="section-5.3-5">PDPs MAY map this interchange format to engine-native entity representations on load.<a href="#section-5.3-5" class="pilcrow">¶</a></p>
+<p id="section-6.3-5">PDPs MAY map this interchange format to engine-native entity representations on load.<a href="#section-6.3-5" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="trusted-issuer-files">
-<section id="section-5.4">
+<section id="section-6.4">
         <h3 id="name-trusted-issuer-files">
-<a href="#section-5.4" class="section-number selfRef">5.4. </a><a href="#name-trusted-issuer-files" class="section-name selfRef">Trusted Issuer Files</a>
+<a href="#section-6.4" class="section-number selfRef">6.4. </a><a href="#name-trusted-issuer-files" class="section-name selfRef">Trusted Issuer Files</a>
         </h3>
-<p id="section-5.4-1">Files under <code>trusted-issuers/</code> MUST:<a href="#section-5.4-1" class="pilcrow">¶</a></p>
+<p id="section-6.4-1">Files under <code>trusted-issuers/</code> MUST:<a href="#section-6.4-1" class="pilcrow">¶</a></p>
 <ul class="normal">
-<li class="normal" id="section-5.4-2.1">
-            <p id="section-5.4-2.1.1">Use the <code>.json</code> file extension.<a href="#section-5.4-2.1.1" class="pilcrow">¶</a></p>
+<li class="normal" id="section-6.4-2.1">
+            <p id="section-6.4-2.1.1">Use the <code>.json</code> file extension.<a href="#section-6.4-2.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-5.4-2.2">
-            <p id="section-5.4-2.2.1">Contain a single trusted issuer configuration object as defined in Trusted Issuers (<a href="#trusted-issuers" class="auto internal xref">Section 7</a>).<a href="#section-5.4-2.2.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-6.4-2.2">
+            <p id="section-6.4-2.2.1">Contain a single trusted issuer configuration object as defined in Trusted Issuers (<a href="#trusted-issuers" class="auto internal xref">Section 8</a>).<a href="#section-6.4-2.2.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 </section>
 </div>
 <div id="schema-files">
-<section id="section-5.5">
+<section id="section-6.5">
         <h3 id="name-schema-files">
-<a href="#section-5.5" class="section-number selfRef">5.5. </a><a href="#name-schema-files" class="section-name selfRef">Schema Files</a>
+<a href="#section-6.5" class="section-number selfRef">6.5. </a><a href="#name-schema-files" class="section-name selfRef">Schema Files</a>
         </h3>
-<p id="section-5.5-1">When the <code>schema/</code> directory is present, it MUST contain all schema artifacts required by the declared policy engine for the policies in that store. Layout and file naming within <code>schema/</code> are defined by the policy engine. A policy store MAY omit <code>schema/</code> entirely; in that case, the PDP MAY obtain schema from another source or operate without packaged schema, according to policy engine capabilities.<a href="#section-5.5-1" class="pilcrow">¶</a></p>
+<p id="section-6.5-1">When the <code>schema/</code> directory is present, it MUST contain all schema artifacts required by the declared policy engine for the policies in that store. Layout and file naming within <code>schema/</code> are defined by the policy engine. A policy store MAY omit <code>schema/</code> entirely; in that case, the PDP MAY obtain schema from another source or operate without packaged schema, according to policy engine capabilities.<a href="#section-6.5-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
 </div>
 <div id="metadata">
-<section id="section-6">
+<section id="section-7">
       <h2 id="name-metadata">
-<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-metadata" class="section-name selfRef">Metadata</a>
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-metadata" class="section-name selfRef">Metadata</a>
       </h2>
-<p id="section-6-1">The <code>metadata.json</code> file provides version and descriptive metadata for the policy store.<a href="#section-6-1" class="pilcrow">¶</a></p>
+<p id="section-7-1">The <code>metadata.json</code> file provides version and descriptive metadata for the policy store.<a href="#section-7-1" class="pilcrow">¶</a></p>
 <div id="structure">
-<section id="section-6.1">
+<section id="section-7.1">
         <h3 id="name-structure">
-<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-structure" class="section-name selfRef">Structure</a>
+<a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-structure" class="section-name selfRef">Structure</a>
         </h3>
-<p id="section-6.1-1">The top-level JSON object MUST contain the following keys:<a href="#section-6.1-1" class="pilcrow">¶</a></p>
-<span class="break"></span><dl class="dlParallel" id="section-6.1-2">
-          <dt id="section-6.1-2.1">
+<p id="section-7.1-1">The top-level JSON object MUST contain the following keys:<a href="#section-7.1-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-7.1-2">
+          <dt id="section-7.1-2.1">
 <code>policy_engine</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-6.1-2.2">
-            <p id="section-6.1-2.2.1">REQUIRED string. Identifies the policy engine (for example, <code>"cedar"</code>, <code>"cerbos"</code>). Values SHOULD be lowercase alphanumeric strings; hyphen MAY separate words.<a href="#section-6.1-2.2.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-7.1-2.2">
+            <p id="section-7.1-2.2.1">REQUIRED string. Identifies the policy engine (for example, <code>"cedar"</code>, <code>"cerbos"</code>). Values SHOULD be lowercase alphanumeric strings; hyphen MAY separate words.<a href="#section-7.1-2.2.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-6.1-2.3">
+<dt id="section-7.1-2.3">
 <code>policy_engine_version</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-6.1-2.4">
-            <p id="section-6.1-2.4.1">REQUIRED string. Version of the policy engine or policy language used by artifacts in this store (for example, <code>"4.4.0"</code> for Cedar, or an implementation version for Cerbos).<a href="#section-6.1-2.4.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-7.1-2.4">
+            <p id="section-7.1-2.4.1">REQUIRED string. Version of the policy engine or policy language used by artifacts in this store (for example, <code>"4.4.0"</code> for Cedar, or an implementation version for Cerbos).<a href="#section-7.1-2.4.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-6.1-2.5">
+<dt id="section-7.1-2.5">
 <code>policy_store</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-6.1-2.6">
-            <p id="section-6.1-2.6.1">REQUIRED object containing policy store metadata fields defined below.<a href="#section-6.1-2.6.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-7.1-2.6">
+            <p id="section-7.1-2.6.1">REQUIRED object containing policy store metadata fields defined below.<a href="#section-7.1-2.6.1" class="pilcrow">¶</a></p>
 </dd>
         <dd class="break"></dd>
 </dl>
 <div id="policystore-object">
-<section id="section-6.1.1">
+<section id="section-7.1.1">
           <h4 id="name-policy_store-object">
-<a href="#section-6.1.1" class="section-number selfRef">6.1.1. </a><a href="#name-policy_store-object" class="section-name selfRef">policy_store Object</a>
+<a href="#section-7.1.1" class="section-number selfRef">7.1.1. </a><a href="#name-policy_store-object" class="section-name selfRef">policy_store Object</a>
           </h4>
-<span class="break"></span><dl class="dlParallel" id="section-6.1.1-1">
-            <dt id="section-6.1.1-1.1">
+<span class="break"></span><dl class="dlParallel" id="section-7.1.1-1">
+            <dt id="section-7.1.1-1.1">
 <code>id</code>:</dt>
-            <dd style="margin-left: 1.5em" id="section-6.1.1-1.2">
-              <p id="section-6.1.1-1.2.1">REQUIRED string. A unique identifier for the policy store, expressed as a hexadecimal string between 15 and 64 characters inclusive.<a href="#section-6.1.1-1.2.1" class="pilcrow">¶</a></p>
+            <dd style="margin-left: 1.5em" id="section-7.1.1-1.2">
+              <p id="section-7.1.1-1.2.1">REQUIRED string. A unique identifier for the policy store, expressed as a hexadecimal string between 15 and 64 characters inclusive.<a href="#section-7.1.1-1.2.1" class="pilcrow">¶</a></p>
 </dd>
             <dd class="break"></dd>
-<dt id="section-6.1.1-1.3">
+<dt id="section-7.1.1-1.3">
 <code>name</code>:</dt>
-            <dd style="margin-left: 1.5em" id="section-6.1.1-1.4">
-              <p id="section-6.1.1-1.4.1">REQUIRED string. A human-readable name for the policy store.<a href="#section-6.1.1-1.4.1" class="pilcrow">¶</a></p>
+            <dd style="margin-left: 1.5em" id="section-7.1.1-1.4">
+              <p id="section-7.1.1-1.4.1">REQUIRED string. A human-readable name for the policy store.<a href="#section-7.1.1-1.4.1" class="pilcrow">¶</a></p>
 </dd>
             <dd class="break"></dd>
-<dt id="section-6.1.1-1.5">
+<dt id="section-7.1.1-1.5">
 <code>description</code>:</dt>
-            <dd style="margin-left: 1.5em" id="section-6.1.1-1.6">
-              <p id="section-6.1.1-1.6.1">OPTIONAL string. A human-readable description.<a href="#section-6.1.1-1.6.1" class="pilcrow">¶</a></p>
+            <dd style="margin-left: 1.5em" id="section-7.1.1-1.6">
+              <p id="section-7.1.1-1.6.1">OPTIONAL string. A human-readable description.<a href="#section-7.1.1-1.6.1" class="pilcrow">¶</a></p>
 </dd>
             <dd class="break"></dd>
-<dt id="section-6.1.1-1.7">
+<dt id="section-7.1.1-1.7">
 <code>version</code>:</dt>
-            <dd style="margin-left: 1.5em" id="section-6.1.1-1.8">
-              <p id="section-6.1.1-1.8.1">OPTIONAL string. A semantic version of the policy store content (for example, <code>"1.2.0"</code>).<a href="#section-6.1.1-1.8.1" class="pilcrow">¶</a></p>
+            <dd style="margin-left: 1.5em" id="section-7.1.1-1.8">
+              <p id="section-7.1.1-1.8.1">OPTIONAL string. A semantic version of the policy store content (for example, <code>"1.2.0"</code>).<a href="#section-7.1.1-1.8.1" class="pilcrow">¶</a></p>
 </dd>
             <dd class="break"></dd>
-<dt id="section-6.1.1-1.9">
+<dt id="section-7.1.1-1.9">
 <code>created_date</code>:</dt>
-            <dd style="margin-left: 1.5em" id="section-6.1.1-1.10">
-              <p id="section-6.1.1-1.10.1">OPTIONAL string. ISO 8601 date-time when the policy store was created.<a href="#section-6.1.1-1.10.1" class="pilcrow">¶</a></p>
+            <dd style="margin-left: 1.5em" id="section-7.1.1-1.10">
+              <p id="section-7.1.1-1.10.1">OPTIONAL string. ISO 8601 date-time when the policy store was created.<a href="#section-7.1.1-1.10.1" class="pilcrow">¶</a></p>
 </dd>
             <dd class="break"></dd>
-<dt id="section-6.1.1-1.11">
+<dt id="section-7.1.1-1.11">
 <code>updated_date</code>:</dt>
-            <dd style="margin-left: 1.5em" id="section-6.1.1-1.12">
-              <p id="section-6.1.1-1.12.1">OPTIONAL string. ISO 8601 date-time when the policy store was last modified.<a href="#section-6.1.1-1.12.1" class="pilcrow">¶</a></p>
+            <dd style="margin-left: 1.5em" id="section-7.1.1-1.12">
+              <p id="section-7.1.1-1.12.1">OPTIONAL string. ISO 8601 date-time when the policy store was last modified.<a href="#section-7.1.1-1.12.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
 </dl>
-<p id="section-6.1.1-2">Implementations MUST NOT add additional top-level keys to <code>metadata.json</code> unless documented by a future revision of this specification. The <code>policy_store</code> object MUST NOT contain keys other than those defined here unless documented by a future revision.<a href="#section-6.1.1-2" class="pilcrow">¶</a></p>
+<p id="section-7.1.1-2">Implementations MUST NOT add additional top-level keys to <code>metadata.json</code> unless documented by a future revision of this specification. The <code>policy_store</code> object MUST NOT contain keys other than those defined here unless documented by a future revision.<a href="#section-7.1.1-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="example-non-normative">
-<section id="section-6.1.2">
+<section id="section-7.1.2">
           <h4 id="name-example-non-normative">
-<a href="#section-6.1.2" class="section-number selfRef">6.1.2. </a><a href="#name-example-non-normative" class="section-name selfRef">Example (non-normative)</a>
+<a href="#section-7.1.2" class="section-number selfRef">7.1.2. </a><a href="#name-example-non-normative" class="section-name selfRef">Example (non-normative)</a>
           </h4>
 <span id="name-example-metadatajson"></span><figure id="figure-2">
-            <div class="lang-json sourcecode" id="section-6.1.2-1.1">
+            <div class="lang-json sourcecode" id="section-7.1.2-1.1">
 <pre>
 {
   "policy_engine": "cedar",
@@ -1796,85 +1936,85 @@ policy-store-root/
 </section>
 </div>
 <div id="trusted-issuers">
-<section id="section-7">
+<section id="section-8">
       <h2 id="name-trusted-issuers">
-<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-trusted-issuers" class="section-name selfRef">Trusted Issuers</a>
+<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-trusted-issuers" class="section-name selfRef">Trusted Issuers</a>
       </h2>
-<p id="section-7-1">Trusted issuer configuration files describe identity providers whose tokens a PDP MAY accept as evidence during policy evaluation. This enables PDPs to validate JSON Web Tokens (<span>[<a href="#RFC7519" class="cite xref">RFC7519</a>]</span>) and map them to principal or entity types in the policy engine's schema.<a href="#section-7-1" class="pilcrow">¶</a></p>
+<p id="section-8-1">Trusted issuer configuration files describe identity providers whose tokens a PDP MAY accept as evidence during policy evaluation. This enables PDPs to validate JSON Web Tokens (<span>[<a href="#RFC7519" class="cite xref">RFC7519</a>]</span>) and map them to principal or entity types in the policy engine's schema.<a href="#section-8-1" class="pilcrow">¶</a></p>
 <div id="structure-1">
-<section id="section-7.1">
+<section id="section-8.1">
         <h3 id="name-structure-2">
-<a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-structure-2" class="section-name selfRef">Structure</a>
+<a href="#section-8.1" class="section-number selfRef">8.1. </a><a href="#name-structure-2" class="section-name selfRef">Structure</a>
         </h3>
-<p id="section-7.1-1">Each trusted issuer file MUST be a JSON object with:<a href="#section-7.1-1" class="pilcrow">¶</a></p>
-<span class="break"></span><dl class="dlParallel" id="section-7.1-2">
-          <dt id="section-7.1-2.1">
+<p id="section-8.1-1">Each trusted issuer file MUST be a JSON object with:<a href="#section-8.1-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-8.1-2">
+          <dt id="section-8.1-2.1">
 <code>id</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-7.1-2.2">
-            <p id="section-7.1-2.2.1">REQUIRED string. Unique identifier for the issuer (hexadecimal, 15–64 characters).<a href="#section-7.1-2.2.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-8.1-2.2">
+            <p id="section-8.1-2.2.1">REQUIRED string. Unique identifier for the issuer (hexadecimal, 15–64 characters).<a href="#section-8.1-2.2.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-7.1-2.3">
+<dt id="section-8.1-2.3">
 <code>name</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-7.1-2.4">
-            <p id="section-7.1-2.4.1">REQUIRED non-empty string. Short human-readable name.<a href="#section-7.1-2.4.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-8.1-2.4">
+            <p id="section-8.1-2.4.1">REQUIRED non-empty string. Short human-readable name.<a href="#section-8.1-2.4.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-7.1-2.5">
+<dt id="section-8.1-2.5">
 <code>description</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-7.1-2.6">
-            <p id="section-7.1-2.6.1">OPTIONAL string.<a href="#section-7.1-2.6.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-8.1-2.6">
+            <p id="section-8.1-2.6.1">OPTIONAL string.<a href="#section-8.1-2.6.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-7.1-2.7">
+<dt id="section-8.1-2.7">
 <code>configuration_endpoint</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-7.1-2.8">
-            <p id="section-7.1-2.8.1">REQUIRED string. URI of the issuer configuration document (for example, OpenID Provider Metadata per <span>[<a href="#RFC8615" class="cite xref">RFC8615</a>]</span>).<a href="#section-7.1-2.8.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-8.1-2.8">
+            <p id="section-8.1-2.8.1">REQUIRED string. URI of the issuer configuration document (for example, OpenID Provider Metadata per <span>[<a href="#RFC8615" class="cite xref">RFC8615</a>]</span>).<a href="#section-8.1-2.8.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
-<dt id="section-7.1-2.9">
+<dt id="section-8.1-2.9">
 <code>token_metadata</code>:</dt>
-          <dd style="margin-left: 1.5em" id="section-7.1-2.10">
-            <p id="section-7.1-2.10.1">OPTIONAL object. Maps token type names (such as <code>access_token</code>, <code>id_token</code>) to per-type configuration objects.<a href="#section-7.1-2.10.1" class="pilcrow">¶</a></p>
+          <dd style="margin-left: 1.5em" id="section-8.1-2.10">
+            <p id="section-8.1-2.10.1">OPTIONAL object. Maps token type names (such as <code>access_token</code>, <code>id_token</code>) to per-type configuration objects.<a href="#section-8.1-2.10.1" class="pilcrow">¶</a></p>
 </dd>
         <dd class="break"></dd>
 </dl>
 <div id="tokenmetadata-entry">
-<section id="section-7.1.1">
+<section id="section-8.1.1">
           <h4 id="name-token_metadata-entry">
-<a href="#section-7.1.1" class="section-number selfRef">7.1.1. </a><a href="#name-token_metadata-entry" class="section-name selfRef">token_metadata Entry</a>
+<a href="#section-8.1.1" class="section-number selfRef">8.1.1. </a><a href="#name-token_metadata-entry" class="section-name selfRef">token_metadata Entry</a>
           </h4>
-<p id="section-7.1.1-1">For each token type key in <code>token_metadata</code>, the value object MAY include:<a href="#section-7.1.1-1" class="pilcrow">¶</a></p>
-<span class="break"></span><dl class="dlParallel" id="section-7.1.1-2">
-            <dt id="section-7.1.1-2.1">
+<p id="section-8.1.1-1">For each token type key in <code>token_metadata</code>, the value object MAY include:<a href="#section-8.1.1-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-8.1.1-2">
+            <dt id="section-8.1.1-2.1">
 <code>entity_type_name</code>:</dt>
-            <dd style="margin-left: 1.5em" id="section-7.1.1-2.2">
-              <p id="section-7.1.1-2.2.1">REQUIRED when the token type entry is present. Type name in the policy engine's schema used when materializing tokens as principals or entities (for example, <code>Acme::Access_token</code> in Cedar, or a Cerbos principal schema reference).<a href="#section-7.1.1-2.2.1" class="pilcrow">¶</a></p>
+            <dd style="margin-left: 1.5em" id="section-8.1.1-2.2">
+              <p id="section-8.1.1-2.2.1">REQUIRED when the token type entry is present. Type name in the policy engine's schema used when materializing tokens as principals or entities (for example, <code>Acme::Access_token</code> in Cedar, or a Cerbos principal schema reference).<a href="#section-8.1.1-2.2.1" class="pilcrow">¶</a></p>
 </dd>
             <dd class="break"></dd>
-<dt id="section-7.1.1-2.3">
+<dt id="section-8.1.1-2.3">
 <code>trusted</code>:</dt>
-            <dd style="margin-left: 1.5em" id="section-7.1.1-2.4">
-              <p id="section-7.1.1-2.4.1">OPTIONAL boolean. When <code>false</code>, tokens of this type from this issuer MUST be rejected. Default is <code>true</code> when omitted.<a href="#section-7.1.1-2.4.1" class="pilcrow">¶</a></p>
+            <dd style="margin-left: 1.5em" id="section-8.1.1-2.4">
+              <p id="section-8.1.1-2.4.1">OPTIONAL boolean. When <code>false</code>, tokens of this type from this issuer MUST be rejected. Default is <code>true</code> when omitted.<a href="#section-8.1.1-2.4.1" class="pilcrow">¶</a></p>
 </dd>
             <dd class="break"></dd>
-<dt id="section-7.1.1-2.5">
+<dt id="section-8.1.1-2.5">
 <code>required_claims</code>:</dt>
-            <dd style="margin-left: 1.5em" id="section-7.1.1-2.6">
-              <p id="section-7.1.1-2.6.1">OPTIONAL array of JWT claim names that MUST be present for the token to be considered valid.<a href="#section-7.1.1-2.6.1" class="pilcrow">¶</a></p>
+            <dd style="margin-left: 1.5em" id="section-8.1.1-2.6">
+              <p id="section-8.1.1-2.6.1">OPTIONAL array of JWT claim names that MUST be present for the token to be considered valid.<a href="#section-8.1.1-2.6.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
 </dl>
-<p id="section-7.1.1-3">PDP implementations MAY define additional fields within token type entries or at the issuer object level. Such extensions MUST NOT alter the meaning of fields defined in this specification. Interoperable tools SHOULD preserve unknown fields when reading and writing policy stores.<a href="#section-7.1.1-3" class="pilcrow">¶</a></p>
+<p id="section-8.1.1-3">PDP implementations MAY define additional fields within token type entries or at the issuer object level. Such extensions MUST NOT alter the meaning of fields defined in this specification. Interoperable tools SHOULD preserve unknown fields when reading and writing policy stores.<a href="#section-8.1.1-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="example-non-normative-1">
-<section id="section-7.1.2">
+<section id="section-8.1.2">
           <h4 id="name-example-non-normative-2">
-<a href="#section-7.1.2" class="section-number selfRef">7.1.2. </a><a href="#name-example-non-normative-2" class="section-name selfRef">Example (non-normative)</a>
+<a href="#section-8.1.2" class="section-number selfRef">8.1.2. </a><a href="#name-example-non-normative-2" class="section-name selfRef">Example (non-normative)</a>
           </h4>
 <span id="name-example-trusted-issuer-conf"></span><figure id="figure-3">
-            <div class="lang-json sourcecode" id="section-7.1.2-1.1">
+            <div class="lang-json sourcecode" id="section-8.1.2-1.1">
 <pre>
 {
   "id": "3af079fa58a915a4d37a668fb874b7a25b70a37c03cf",
@@ -1901,111 +2041,126 @@ policy-store-root/
 </section>
 </div>
 <div id="archive-format">
-<section id="section-8">
+<section id="section-9">
       <h2 id="name-archive-format">
-<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-archive-format" class="section-name selfRef">Archive Format</a>
+<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-archive-format" class="section-name selfRef">Archive Format</a>
       </h2>
-<p id="section-8-1">The Archive Format packages the Directory Format as a ZIP archive (Constraint JAR, <code>.cjar</code>).<a href="#section-8-1" class="pilcrow">¶</a></p>
+<p id="section-9-1">The Archive Format packages the Directory Format as a ZIP archive (Constraint JAR, <code>.cjar</code>).<a href="#section-9-1" class="pilcrow">¶</a></p>
 <div id="requirements">
-<section id="section-8.1">
+<section id="section-9.1">
         <h3 id="name-requirements">
-<a href="#section-8.1" class="section-number selfRef">8.1. </a><a href="#name-requirements" class="section-name selfRef">Requirements</a>
+<a href="#section-9.1" class="section-number selfRef">9.1. </a><a href="#name-requirements" class="section-name selfRef">Requirements</a>
         </h3>
 <ul class="normal">
-<li class="normal" id="section-8.1-1.1">
-            <p id="section-8.1-1.1.1">The archive MUST use the ZIP format and <code>.cjar</code> file extension.<a href="#section-8.1-1.1.1" class="pilcrow">¶</a></p>
+<li class="normal" id="section-9.1-1.1">
+            <p id="section-9.1-1.1.1">The archive MUST use the ZIP format and <code>.cjar</code> file extension.<a href="#section-9.1-1.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-8.1-1.2">
-            <p id="section-8.1-1.2.1">Paths inside the archive MUST match the Directory Format layout relative to the policy store root.<a href="#section-8.1-1.2.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-9.1-1.2">
+            <p id="section-9.1-1.2.1">Paths inside the archive MUST match the Directory Format layout relative to the policy store root.<a href="#section-9.1-1.2.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-8.1-1.3">
-            <p id="section-8.1-1.3.1">The archive MUST NOT require extraction to a specific absolute path; relative paths MUST be preserved.<a href="#section-8.1-1.3.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-9.1-1.3">
+            <p id="section-9.1-1.3.1">The archive MUST NOT require extraction to a specific absolute path; relative paths MUST be preserved.<a href="#section-9.1-1.3.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-8.1-1.4">
-            <p id="section-8.1-1.4.1">Archive file names SHOULD follow the pattern <code>{policy-store-name}-{version}.cjar</code> where <code>version</code> matches <code>policy_store.version</code> in <code>metadata.json</code> when present.<a href="#section-8.1-1.4.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-9.1-1.4">
+            <p id="section-9.1-1.4.1">Archive file names SHOULD follow the pattern <code>{policy-store-name}-{version}.cjar</code> where <code>version</code> matches <code>policy_store.version</code> in <code>metadata.json</code> when present.<a href="#section-9.1-1.4.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
-<p id="section-8.1-2">PDPs loading <code>.cjar</code> files SHOULD validate structure and required files before evaluation.<a href="#section-8.1-2" class="pilcrow">¶</a></p>
+<p id="section-9.1-2">PDPs loading <code>.cjar</code> files SHOULD validate structure and required files before evaluation.<a href="#section-9.1-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
 </div>
 <div id="policy-store-loading">
-<section id="section-9">
+<section id="section-10">
       <h2 id="name-policy-store-loading">
-<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-policy-store-loading" class="section-name selfRef">Policy Store Loading</a>
+<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-policy-store-loading" class="section-name selfRef">Policy Store Loading</a>
       </h2>
-<p id="section-9-1">PDPs and tools that load policy stores SHOULD perform the following steps:<a href="#section-9-1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-9-2">
-<li id="section-9-2.1">
-          <p id="section-9-2.1.1">Detect format (directory or <code>.cjar</code> archive) and normalize to a directory view.<a href="#section-9-2.1.1" class="pilcrow">¶</a></p>
+<p id="section-10-1">PDPs and tools that load policy stores SHOULD perform the following steps:<a href="#section-10-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-10-2">
+<li id="section-10-2.1">
+          <p id="section-10-2.1.1">Detect format (directory or <code>.cjar</code> archive) and normalize to a directory view.<a href="#section-10-2.1.1" class="pilcrow">¶</a></p>
 </li>
-        <li id="section-9-2.2">
-          <p id="section-9-2.2.1">Verify required files and directories exist.<a href="#section-9-2.2.1" class="pilcrow">¶</a></p>
+        <li id="section-10-2.2">
+          <p id="section-10-2.2.1">Verify required files and directories exist.<a href="#section-10-2.2.1" class="pilcrow">¶</a></p>
 </li>
-        <li id="section-9-2.3">
-          <p id="section-9-2.3.1">Parse and validate <code>metadata.json</code>.<a href="#section-9-2.3.1" class="pilcrow">¶</a></p>
+        <li id="section-10-2.3">
+          <p id="section-10-2.3.1">Parse and validate <code>metadata.json</code>.<a href="#section-10-2.3.1" class="pilcrow">¶</a></p>
 </li>
-        <li id="section-9-2.4">
-          <p id="section-9-2.4.1">Confirm the implementation supports the declared <code>policy_engine</code> and <code>policy_engine_version</code>, or reject the store.<a href="#section-9-2.4.1" class="pilcrow">¶</a></p>
+        <li id="section-10-2.4">
+          <p id="section-10-2.4.1">Confirm the implementation supports the declared <code>policy_engine</code> and <code>policy_engine_version</code>, or reject the store.<a href="#section-10-2.4.1" class="pilcrow">¶</a></p>
 </li>
-        <li id="section-9-2.5">
-          <p id="section-9-2.5.1">If present, load <code>schema/</code>; then load policies and optional templates, entities, and trusted issuers according to policy engine rules.<a href="#section-9-2.5.1" class="pilcrow">¶</a></p>
+        <li id="section-10-2.5">
+          <p id="section-10-2.5.1">If present, load <code>schema/</code>; then load policies and optional templates, entities, and trusted issuers according to policy engine rules.<a href="#section-10-2.5.1" class="pilcrow">¶</a></p>
 </li>
-        <li id="section-9-2.6">
-          <p id="section-9-2.6.1">Verify policy engine-specific requirements (such as unique policy identifiers).<a href="#section-9-2.6.1" class="pilcrow">¶</a></p>
+        <li id="section-10-2.6">
+          <p id="section-10-2.6.1">Verify policy engine-specific requirements (such as unique policy identifiers).<a href="#section-10-2.6.1" class="pilcrow">¶</a></p>
 </li>
       </ol>
-<p id="section-9-3">Failure at any REQUIRED validation step SHOULD result in rejecting the policy store for evaluation.<a href="#section-9-3" class="pilcrow">¶</a></p>
+<p id="section-10-3">Failure at any REQUIRED validation step SHOULD result in rejecting the policy store for evaluation.<a href="#section-10-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="relationship-to-authzen">
-<section id="section-10">
+<section id="section-11">
       <h2 id="name-relationship-to-authzen">
-<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-relationship-to-authzen" class="section-name selfRef">Relationship to AuthZEN</a>
+<a href="#section-11" class="section-number selfRef">11. </a><a href="#name-relationship-to-authzen" class="section-name selfRef">Relationship to AuthZEN</a>
       </h2>
-<p id="section-10-1">The AuthZEN Authorization API (<span>[<a href="#AUTHZEN-API" class="cite xref">AUTHZEN-API</a>]</span>) standardizes communication between PEPs and PDPs. This specification does not define API endpoints. It standardizes how policy artifacts are packaged so that:<a href="#section-10-1" class="pilcrow">¶</a></p>
+<p id="section-11-1">The AuthZEN Authorization API (<span>[<a href="#AUTHZEN-API" class="cite xref">AUTHZEN-API</a>]</span>) standardizes communication between PEPs and PDPs. This specification does not define API endpoints. It standardizes how policy artifacts are packaged so that:<a href="#section-11-1" class="pilcrow">¶</a></p>
 <ul class="normal">
-<li class="normal" id="section-10-2.1">
-          <p id="section-10-2.1.1">PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format regardless of policy engine.<a href="#section-10-2.1.1" class="pilcrow">¶</a></p>
+<li class="normal" id="section-11-2.1">
+          <p id="section-11-2.1.1">PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format regardless of policy engine.<a href="#section-11-2.1.1" class="pilcrow">¶</a></p>
 </li>
-        <li class="normal" id="section-10-2.2">
-          <p id="section-10-2.2.1">CI/CD pipelines MAY version, review, and promote policy stores as atomic units.<a href="#section-10-2.2.1" class="pilcrow">¶</a></p>
+        <li class="normal" id="section-11-2.2">
+          <p id="section-11-2.2.1">CI/CD pipelines MAY version, review, and promote policy stores as atomic units.<a href="#section-11-2.2.1" class="pilcrow">¶</a></p>
 </li>
-        <li class="normal" id="section-10-2.3">
-          <p id="section-10-2.3.1">Audit systems MAY bind decision logs to a specific <code>policy_store.id</code>.<a href="#section-10-2.3.1" class="pilcrow">¶</a></p>
+        <li class="normal" id="section-11-2.3">
+          <p id="section-11-2.3.1">Audit systems MAY bind decision logs to a specific <code>policy_store.id</code>.<a href="#section-11-2.3.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 </section>
 </div>
 <div id="security-considerations">
-<section id="section-11">
+<section id="section-12">
       <h2 id="name-security-considerations">
-<a href="#section-11" class="section-number selfRef">11. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+<a href="#section-12" class="section-number selfRef">12. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
       </h2>
-<p id="section-11-1">Policy stores contain authorization rules and may include sensitive configuration. Implementations MUST protect policy stores at rest and in transit using appropriate access controls for the deployment environment.<a href="#section-11-1" class="pilcrow">¶</a></p>
-<p id="section-11-2">Deployments SHOULD use signed releases or secure artifact repositories where integrity and provenance are required.<a href="#section-11-2" class="pilcrow">¶</a></p>
-<p id="section-11-3">Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate <code>configuration_endpoint</code> URIs and token metadata before trusting tokens in production.<a href="#section-11-3" class="pilcrow">¶</a></p>
-<p id="section-11-4">Policy stores SHOULD be treated as part of the trusted computing base for authorization decisions. Loading a policy store from an untrusted source without validation is NOT RECOMMENDED.<a href="#section-11-4" class="pilcrow">¶</a></p>
+<div id="policy-store-1">
+<section id="section-12.1">
+        <h3 id="name-policy-store-2">
+<a href="#section-12.1" class="section-number selfRef">12.1. </a><a href="#name-policy-store-2" class="section-name selfRef">Policy store</a>
+        </h3>
+<p id="section-12.1-1">Policy stores contain authorization rules and may include sensitive configuration. Implementations MUST protect policy stores at rest and in transit using appropriate access controls for the deployment environment.<a href="#section-12.1-1" class="pilcrow">¶</a></p>
+<p id="section-12.1-2">Deployments SHOULD use signed releases or secure artifact repositories where integrity and provenance are required.<a href="#section-12.1-2" class="pilcrow">¶</a></p>
+<p id="section-12.1-3">Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate <code>configuration_endpoint</code> URIs and token metadata before trusting tokens in production.<a href="#section-12.1-3" class="pilcrow">¶</a></p>
+<p id="section-12.1-4">Policy stores SHOULD be treated as part of the trusted computing base for authorization decisions. Loading a policy store from an untrusted source without validation is NOT RECOMMENDED.<a href="#section-12.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="policy-store-api-2">
+<section id="section-12.2">
+        <h3 id="name-policy-store-api-3">
+<a href="#section-12.2" class="section-number selfRef">12.2. </a><a href="#name-policy-store-api-3" class="section-name selfRef">Policy store API</a>
+        </h3>
+<p id="section-12.2-1">PDP should protect this API endpoint by taking appropriate measures to authenticate and authorise the request in accordance with <a href="https://openid.net/specs/authorization-api-1_0.html#section-11.2">Authorization API guidelines</a><a href="#section-12.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
 </section>
 </div>
 <div id="iana-considerations">
-<section id="section-12">
+<section id="section-13">
       <h2 id="name-iana-considerations">
-<a href="#section-12" class="section-number selfRef">12. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+<a href="#section-13" class="section-number selfRef">13. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
       </h2>
-<p id="section-12-1">This document has no IANA actions.<a href="#section-12-1" class="pilcrow">¶</a></p>
+<p id="section-13-1">This document has no IANA actions.<a href="#section-13-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="sec-combined-references">
-<section id="section-13">
+<section id="section-14">
       <h2 id="name-references">
-<a href="#section-13" class="section-number selfRef">13. </a><a href="#name-references" class="section-name selfRef">References</a>
+<a href="#section-14" class="section-number selfRef">14. </a><a href="#name-references" class="section-name selfRef">References</a>
       </h2>
 <div id="sec-normative-references">
-<section id="section-13.1">
+<section id="section-14.1">
         <h3 id="name-normative-references">
-<a href="#section-13.1" class="section-number selfRef">13.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+<a href="#section-14.1" class="section-number selfRef">14.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
         </h3>
 <dl class="references">
 <dt id="RFC8259">[RFC8259]</dt>
@@ -2028,9 +2183,9 @@ policy-store-root/
 </section>
 </div>
 <div id="sec-informative-references">
-<section id="section-13.2">
+<section id="section-14.2">
         <h3 id="name-informative-references">
-<a href="#section-13.2" class="section-number selfRef">13.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+<a href="#section-14.2" class="section-number selfRef">14.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
         </h3>
 <dl class="references">
 <dt id="CEDAR">[CEDAR]</dt>
