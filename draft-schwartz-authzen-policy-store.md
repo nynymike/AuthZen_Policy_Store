@@ -421,7 +421,7 @@ The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication betwe
 
 This specification adds a new Policy Decision Point Metadata endpoint parameter to the [existing AuthZen parameter list](https://openid.net/specs/authorization-api-1_0.html#name-endpoint-parameters). The new parameter should be added as mentioned below:
 
-`policy_store_endpoint`: OPTIONAL. Base URL of the Policy Decision Point's Policy store endpoint 
+`policy_store_endpoint`: OPTIONAL. HTTPS URL of the Policy Decision Point's Policy store endpoint 
 
 The parameter should be registered in the IANA registry as established under [IANA Considerations](#iana-considerations). The parameter should be obtainable using the AuthZen `.well-known/authzen-configuration` in the same way as described in the [relevant section](https://openid.net/specs/authorization-api-1_0.html#name-obtaining-policy-decision-p) of the Authzen Authorization API Specification.
 
@@ -471,7 +471,7 @@ Metadata Name:
 `policy_store_endpoint`
 
 Metadata Description:
-Base URL of the Policy Decision Point's Policy store endpoint 
+HTTPS URL of the Policy Decision Point's Policy store endpoint 
 
 Change Controller:
 OpenID Foundation AuthZEN Working Group

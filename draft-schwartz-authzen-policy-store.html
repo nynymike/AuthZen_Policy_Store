@@ -2107,7 +2107,7 @@ policy-store-root/
 <a href="#section-12" class="section-number selfRef">12. </a><a href="#name-update-to-policy-decision-p" class="section-name selfRef">Update to Policy Decision Point Metadata</a>
       </h2>
 <p id="section-12-1">This specification adds a new Policy Decision Point Metadata endpoint parameter to the <a href="https://openid.net/specs/authorization-api-1_0.html#name-endpoint-parameters">existing AuthZen parameter list</a>. The new parameter should be added as mentioned below:<a href="#section-12-1" class="pilcrow">¶</a></p>
-<p id="section-12-2"><code>policy_store_endpoint</code>: OPTIONAL. Base URL of the Policy Decision Point's Policy store endpoint<a href="#section-12-2" class="pilcrow">¶</a></p>
+<p id="section-12-2"><code>policy_store_endpoint</code>: OPTIONAL. HTTPS URL of the Policy Decision Point's Policy store endpoint<a href="#section-12-2" class="pilcrow">¶</a></p>
 <p id="section-12-3">The parameter should be registered in the IANA registry as established under <span><a href="#iana-considerations" class="internal xref">IANA Considerations</a> (<a href="#iana-considerations" class="auto internal xref">Section 14</a>)</span>. The parameter should be obtainable using the AuthZen <code>.well-known/authzen-configuration</code> in the same way as described in the <a href="https://openid.net/specs/authorization-api-1_0.html#name-obtaining-policy-decision-p">relevant section</a> of the Authzen Authorization API Specification.<a href="#section-12-3" class="pilcrow">¶</a></p>
 <p id="section-12-4">A request such as below to the AuthZen <code>.well-known</code> endpoint should include the <code>policy_store_endpoint</code> parameter if the Policy Decision Point supports this endpoint.<a href="#section-12-4" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-12-5">
@@ -2168,7 +2168,7 @@ Content-Type: application/json
 <p id="section-14-2">Metadata Name:
 <code>policy_store_endpoint</code><a href="#section-14-2" class="pilcrow">¶</a></p>
 <p id="section-14-3">Metadata Description:
-Base URL of the Policy Decision Point's Policy store endpoint<a href="#section-14-3" class="pilcrow">¶</a></p>
+HTTPS URL of the Policy Decision Point's Policy store endpoint<a href="#section-14-3" class="pilcrow">¶</a></p>
 <p id="section-14-4">Change Controller:
 OpenID Foundation AuthZEN Working Group<a href="#section-14-4" class="pilcrow">¶</a></p>
 <p id="section-14-5">mailto:openid-specs-authzen@lists.openid.net<a href="#section-14-5" class="pilcrow">¶</a></p>
