@@ -411,11 +411,41 @@ Failure at any REQUIRED validation step SHOULD result in rejecting the policy st
 
 # Relationship to AuthZEN
 
-The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication between PEPs and PDPs. This specification does not define API endpoints. It standardizes how policy artifacts are packaged so that:
+The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication between PEPs and PDPs. It standardizes how policy artifacts are packaged so that:
 
 * PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format regardless of policy engine.
 * CI/CD pipelines MAY version, review, and promote policy stores as atomic units.
 * Audit systems MAY bind decision logs to a specific `policy_store.id`.
+
+# Update to Policy Decision Point Metadata
+
+This specification adds a new Policy Decision Point Metadata endpoint parameter to the [existing AuthZen parameter list](https://openid.net/specs/authorization-api-1_0.html#name-endpoint-parameters). The new parameter should be added as mentioned below:
+
+`policy_store_endpoint`: OPTIONAL. Base URL of the Policy Decision Point's Policy store endpoint 
+
+The parameter should be registered in the IANA registry as established under [IANA Considerations](#iana-considerations). The parameter should be obtainable using the AuthZen `.well-known/authzen-configuration` in the same way as described in the [relevant section](https://openid.net/specs/authorization-api-1_0.html#name-obtaining-policy-decision-p) of the Authzen Authorization API Specification.
+
+A request such as below to the AuthZen `.well-known` endpoint should include the `policy_store_endpoint` parameter if the Policy Decision Point supports this endpoint.
+
+~~~
+GET /.well-known/authzen-configuration HTTP/1.1
+Host: pdp.example.com
+~~~
+
+A non-normative example of the successful response:
+
+~~~
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "policy_decision_point": "https://pdp.example.com",
+  "access_evaluation_endpoint": "https://pdp.example.com/access/v1/evaluation",
+  "search_subject_endpoint": "https://pdp.example.com/access/v1/search/subject",
+  "search_resource_endpoint": "https://pdp.example.com/access/v1/search/resource",
+  "policy_store_endpoint": "https://pdp.example.com/v1/policy-store"
+}
+~~~
 
 # Security Considerations
 
