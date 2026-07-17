@@ -1287,16 +1287,13 @@ li > p:last-of-type:only-child {
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
-            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-policy-store-api-2" class="internal xref">Policy Store API</a></p>
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-policy-store-api-specificat" class="internal xref">Policy Store API Specification</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1">
                 <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-api-request" class="internal xref">API Request</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
                 <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-api-response" class="internal xref">API Response</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.3">
-                <p id="section-toc.1-1.4.2.3.1"><a href="#section-4.3" class="auto internal xref">4.3</a>.  <a href="#name-authzen-pdp-metadata-regist" class="internal xref">AuthZen PDP Metadata Registry</a></p>
 </li>
             </ul>
 </li>
@@ -1384,7 +1381,7 @@ li > p:last-of-type:only-child {
                 <p id="section-toc.1-1.12.2.1.1"><a href="#section-12.1" class="auto internal xref">12.1</a>.  <a href="#name-policy-store-2" class="internal xref">Policy store</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.2">
-                <p id="section-toc.1-1.12.2.2.1"><a href="#section-12.2" class="auto internal xref">12.2</a>.  <a href="#name-policy-store-api-3" class="internal xref">Policy store API</a></p>
+                <p id="section-toc.1-1.12.2.2.1"><a href="#section-12.2" class="auto internal xref">12.2</a>.  <a href="#name-policy-store-api-2" class="internal xref">Policy store API</a></p>
 </li>
             </ul>
 </li>
@@ -1549,10 +1546,10 @@ li > p:last-of-type:only-child {
 </div>
 </section>
 </div>
-<div id="policy-store-api-1">
+<div id="policy-store-api-specification">
 <section id="section-4">
-      <h2 id="name-policy-store-api-2">
-<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-policy-store-api-2" class="section-name selfRef">Policy Store API</a>
+      <h2 id="name-policy-store-api-specificat">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-policy-store-api-specificat" class="section-name selfRef">Policy Store API Specification</a>
       </h2>
 <p id="section-4-1">Policy store API defines <code>/policystore</code> endpoint for uploading the policy store.<a href="#section-4-1" class="pilcrow">¶</a></p>
 <div id="api-request">
@@ -1622,23 +1619,6 @@ Content-Type: application/json
 }
 </pre><a href="#section-4.2-5" class="pilcrow">¶</a>
 </div>
-</section>
-</div>
-<div id="authzen-pdp-metadata-registry">
-<section id="section-4.3">
-        <h3 id="name-authzen-pdp-metadata-regist">
-<a href="#section-4.3" class="section-number selfRef">4.3. </a><a href="#name-authzen-pdp-metadata-regist" class="section-name selfRef">AuthZen PDP Metadata Registry</a>
-        </h3>
-<p id="section-4.3-1">The AuthZen working group has defined a metadata registry for OpenID AuthZEN Policy Decision Points (PDPs), <a href="https://openid.github.io/authzen/#name-authzen-policy-decision-poi">[AUTHZEN-PDP-METADATA]</a>. This document extends that registry with requirement to add policy store API to the registry with following metadata.<a href="#section-4.3-1" class="pilcrow">¶</a></p>
-<p id="section-4.3-2">Metadata Name:
-<code>policy_store_endpoint</code><a href="#section-4.3-2" class="pilcrow">¶</a></p>
-<p id="section-4.3-3">Metadata Description:
-Base URL of the Policy Decision Point's Policy store endpoint<a href="#section-4.3-3" class="pilcrow">¶</a></p>
-<p id="section-4.3-4">Change Controller:
-OpenID Foundation AuthZEN Working Group<a href="#section-4.3-4" class="pilcrow">¶</a></p>
-<p id="section-4.3-5">mailto:openid-specs-authzen@lists.openid.net<a href="#section-4.3-5" class="pilcrow">¶</a></p>
-<p id="section-4.3-6">Specification Document(s):
-Current section of this document<a href="#section-4.3-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -2134,10 +2114,10 @@ policy-store-root/
 <p id="section-12.1-4">Policy stores SHOULD be treated as part of the trusted computing base for authorization decisions. Loading a policy store from an untrusted source without validation is NOT RECOMMENDED.<a href="#section-12.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="policy-store-api-2">
+<div id="policy-store-api-1">
 <section id="section-12.2">
-        <h3 id="name-policy-store-api-3">
-<a href="#section-12.2" class="section-number selfRef">12.2. </a><a href="#name-policy-store-api-3" class="section-name selfRef">Policy store API</a>
+        <h3 id="name-policy-store-api-2">
+<a href="#section-12.2" class="section-number selfRef">12.2. </a><a href="#name-policy-store-api-2" class="section-name selfRef">Policy store API</a>
         </h3>
 <p id="section-12.2-1">PDP should protect this API endpoint by taking appropriate measures to authenticate and authorise the request in accordance with <a href="https://openid.net/specs/authorization-api-1_0.html#section-11.2">Authorization API guidelines</a><a href="#section-12.2-1" class="pilcrow">¶</a></p>
 </section>
@@ -2149,7 +2129,16 @@ policy-store-root/
       <h2 id="name-iana-considerations">
 <a href="#section-13" class="section-number selfRef">13. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
       </h2>
-<p id="section-13-1">This document has no IANA actions.<a href="#section-13-1" class="pilcrow">¶</a></p>
+<p id="section-13-1">The AuthZen working group has defined a metadata registry for OpenID AuthZEN Policy Decision Points (PDPs), <a href="https://openid.github.io/authzen/#name-authzen-policy-decision-poi">[AUTHZEN-PDP-METADATA]</a>. This document extends that registry with requirement to add policy store API to the registry with following metadata.<a href="#section-13-1" class="pilcrow">¶</a></p>
+<p id="section-13-2">Metadata Name:
+<code>policy_store_endpoint</code><a href="#section-13-2" class="pilcrow">¶</a></p>
+<p id="section-13-3">Metadata Description:
+Base URL of the Policy Decision Point's Policy store endpoint<a href="#section-13-3" class="pilcrow">¶</a></p>
+<p id="section-13-4">Change Controller:
+OpenID Foundation AuthZEN Working Group<a href="#section-13-4" class="pilcrow">¶</a></p>
+<p id="section-13-5">mailto:openid-specs-authzen@lists.openid.net<a href="#section-13-5" class="pilcrow">¶</a></p>
+<p id="section-13-6">Specification Document(s):
+See the <span><a href="#policy-store-api-specification" class="internal xref">Policy Store API specification</a> (<a href="#policy-store-api-specification" class="auto internal xref">Section 4</a>)</span> section.<a href="#section-13-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="sec-combined-references">

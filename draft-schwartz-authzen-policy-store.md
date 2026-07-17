@@ -122,7 +122,7 @@ Implementations MAY support either the Directory Format or the Archive Format, o
 
 The Archive Format is a ZIP archive containing the same relative paths as the Directory Format. Archive files MUST use the `.cjar` extension.
 
-# Policy Store API
+# Policy Store API Specification
 
 Policy store API defines `/policystore` endpoint for uploading the policy store.
 
@@ -175,24 +175,6 @@ The server validates the uploaded file and metadata. On success it stores the fi
   "error": "Invalid metadata.version does not match archive."
 }
 ~~~
-
-## AuthZen PDP Metadata Registry
-
-The AuthZen working group has defined a metadata registry for OpenID AuthZEN Policy Decision Points (PDPs), [[AUTHZEN-PDP-METADATA]](https://openid.github.io/authzen/#name-authzen-policy-decision-poi). This document extends that registry with requirement to add policy store API to the registry with following metadata.
-
-Metadata Name:
-`policy_store_endpoint`
-
-Metadata Description:
-Base URL of the Policy Decision Point's Policy store endpoint 
-
-Change Controller:
-OpenID Foundation AuthZEN Working Group
-
-mailto:openid-specs-authzen@lists.openid.net
-
-Specification Document(s):
-Current section of this document
 
 # Policy Store Directory Structure
 
@@ -453,7 +435,21 @@ PDP should protect this API endpoint by taking appropriate measures to authentic
 
 # IANA Considerations
 
-This document has no IANA actions.
+The AuthZen working group has defined a metadata registry for OpenID AuthZEN Policy Decision Points (PDPs), [[AUTHZEN-PDP-METADATA]](https://openid.github.io/authzen/#name-authzen-policy-decision-poi). This document extends that registry with requirement to add policy store API to the registry with following metadata.
+
+Metadata Name:
+`policy_store_endpoint`
+
+Metadata Description:
+Base URL of the Policy Decision Point's Policy store endpoint 
+
+Change Controller:
+OpenID Foundation AuthZEN Working Group
+
+mailto:openid-specs-authzen@lists.openid.net
+
+Specification Document(s):
+See the [Policy Store API specification](#policy-store-api-specification) section.
 
 --- back
 
