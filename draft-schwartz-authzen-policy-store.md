@@ -39,6 +39,7 @@ normative:
  RFC7519:
  RFC8615:
  RFC2119:
+ RFC7578:
 
 informative:
  CEDAR:
@@ -102,7 +103,7 @@ Policy Decision Point (PDP):
 
 ## Policy store API
 
-The **`/policystore`** endpoint is a POST‑only HTTP API that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. This API enables PDP administrators to upload the updated versions of the policy stores. API does not expose HTTP methods that allow updates or deletion of the existing policy stores. This ensures that the policy stores are treated as immutable stores and can be versioned and rolled back easily.
+The policy store API defines a single POST‑only HTTP API endpoint that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. This API enables PDP administrators to upload the updated versions of the policy stores. API does not expose HTTP methods that allow updates or deletion of the existing policy stores. This ensures that the policy stores are treated as immutable stores and can be versioned and rolled back easily.
 
 ## Policy store
 
@@ -124,11 +125,11 @@ The Archive Format is a ZIP archive containing the same relative paths as the Di
 
 # Policy Store API Specification
 
-Policy store API defines `/policystore` endpoint for uploading the policy store.
+Policy store API defines `/access/v1/policy-store` endpoint for uploading the policy store.
 
-## API Request
+## API Request {#api-request}
 
-The **`/policystore`** endpoint is a POST‑only HTTP API that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. The request body must be a multipart/form‑data upload with the following parts:
+The **`/access/v1/policy-store`** endpoint is a POST‑only HTTP API that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. The request body must be a multipart/form‑data upload with the following parts:
 
 - **file**: The `.cjar` archive.
 - **metadata**: A JSON object providing:
@@ -138,7 +139,7 @@ The **`/policystore`** endpoint is a POST‑only HTTP API that accepts a **`.cja
 **Example Request**:
 
 ~~~http
-POST /policystore HTTP/1.1
+POST /access/v1/policy-store HTTP/1.1
 Host: api.example.com
 Content-Type: multipart/form-data; boundary=---XYZ
 
@@ -155,7 +156,9 @@ Content-Type: application/json
 -----XYZ--
 ~~~
 
-## API Response
+Refer to ({{transport}}) for more details.
+
+## API Response {#api-response}
 
 The server validates the uploaded file and metadata. On success it stores the file and returns **201 Created** with a JSON body containing the assigned identifier. On validation failure it returns **400 Bad Request** with an error description.
 
@@ -175,6 +178,8 @@ The server validates the uploaded file and metadata. On success it stores the fi
   "error": "Invalid metadata.version does not match archive."
 }
 ~~~
+
+Refer to ({{transport}}) for more details.
 
 # Policy Store Directory Structure
 
@@ -417,7 +422,7 @@ The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication betwe
 * CI/CD pipelines MAY version, review, and promote policy stores as atomic units.
 * Audit systems MAY bind decision logs to a specific `policy_store.id`.
 
-# Update to Policy Decision Point Metadata
+# Update to Policy Decision Point Metadata {#update-pdp-metadata}
 
 This specification adds a new Policy Decision Point Metadata endpoint parameter to the [existing AuthZen parameter list](https://openid.net/specs/authorization-api-1_0.html#name-endpoint-parameters). The new parameter should be added as mentioned below:
 
@@ -443,9 +448,80 @@ Content-Type: application/json
   "access_evaluation_endpoint": "https://pdp.example.com/access/v1/evaluation",
   "search_subject_endpoint": "https://pdp.example.com/access/v1/search/subject",
   "search_resource_endpoint": "https://pdp.example.com/access/v1/search/resource",
-  "policy_store_endpoint": "https://pdp.example.com/v1/policy-store"
+  "policy_store_endpoint": "https://pdp.example.com/access/v1/policy-store"
 }
 ~~~
+
+# Transport {#transport}
+
+This specification defines an HTTPS binding using JSON serialization which MUST be implemented by a compliant PDP.
+
+## HTTPS JSON Binding
+
+All API requests to the policy store endpoint MUST be made via an HTTPS POST request.
+
+Requests MUST include a `Content-Type` header with the value `multipart/form-data` [[RFC7578]]. The request body MUST conform to the request structure defined in ({{api-request}}).
+
+| API Endpoint | Default Path | Metadata Parameter | Request Schema | Response Schema |
+| :--- | :--- | :--- | :--- | :--- |
+| Policy Store | /access/v1/policy-store | policy_store_endpoint | {{api-request}} | {{api-response}} |
+
+
+A successful response is an HTTPS response with a status code of 201 Created and a `Content-Type` of `application/json`. The response body MUST be a JSON object that conforms to the structure defined in ({{api-response}}).
+
+The request URL MUST be the value of the `policy_store_endpoint` parameter ({{update-pdp-metadata}}) if provided in the Policy Decision Point metadata. If the parameter is omitted, the URL SHOULD be formed by appending the default path (as defined in table-1) to the PDP’s base URL. PDP's base URL should be obtained from the value of `policy_decision_point` parameter of the Policy Decision Point metadata as defined by AuthZEN Authorization API ({{AUTHZEN-API}}), if available.
+
+### Serialization
+
+The `metadata` part of the multipart request MUST be serialized as a JSON object [[RFC8259]]. Implementations MUST ignore unknown fields to ensure forward compatibility.
+
+The data types defined in this specification are mapped to JSON types as follows:
+
+Object:
+Represented as a JSON object (Section 4 of [RFC8259]). The values of its members can be any valid JSON value as defined in Section 3 of [RFC8259], including other objects and arrays, unless specified otherwise.
+
+String:
+Represented as a JSON string (Section 7 of [RFC8259]).
+
+### Error Responses
+
+Error responses use HTTPS status codes to indicate failures. The PDP MUST return a 400 Bad Request if the multipart body is malformed or if required parts are missing. Authentication and authorization failures MUST return 401 Unauthorized or 403 Forbidden respectively.
+
+| Code | Description | HTTPS Body Content |
+| :--- | :--- | :--- |
+| 400 | Bad Request | An error message string or JSON object with error details |
+| 401 | Unauthorized | An error message string |
+| 403 | Forbidden | An error message string |
+| 500 | Internal Error | An error message string |
+
+### Request Identification
+
+Requests MAY include a unique identifier in the `X-Request-ID` header as defined in AuthZEN Authorization API ({{AUTHZEN-API}}). If present, the PDP MUST include the same identifier in the `X-Request-ID` response header to assist in request tracing and debugging. 
+
+### Example (non-normative)
+
+The following example shows an HTTPS upload of a policy store:
+
+~~~
+POST /access/v1/policy-store HTTP/1.1
+Host: pdp.example.com
+Authorization: Bearer mF_9.B5f-4.1JqM
+X-Request-ID: bfe9eb29-ab87-4ca3-be83-a1d5d8305716
+Content-Type: multipart/form-data; boundary=---XYZ
+
+-----XYZ
+Content-Disposition: form-data; name="file"; filename="store.cjar"
+Content-Type: application/zip
+
+<binary .cjar content>
+-----XYZ
+Content-Disposition: form-data; name="metadata"
+Content-Type: application/json
+
+{"version":"1.0.0","created_timestamp":"2026-07-15T10:30:00Z"}
+-----XYZ--
+~~~
+
 
 # Security Considerations
 
