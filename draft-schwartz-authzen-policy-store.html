@@ -1236,7 +1236,7 @@ li > p:last-of-type:only-child {
 <dd class="workgroup">OpenID AuthZEN</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2026-08-25" class="published">25 August 2026</time>
+<time datetime="2026-08-27" class="published">27 August 2026</time>
     </dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
@@ -1900,12 +1900,6 @@ policy-store-root/
             <dd style="margin-left: 1.5em" id="section-7.1.1-1.10">
               <p id="section-7.1.1-1.10.1">OPTIONAL string. ISO 8601 date-time when the policy store was created.<a href="#section-7.1.1-1.10.1" class="pilcrow">¶</a></p>
 </dd>
-            <dd class="break"></dd>
-<dt id="section-7.1.1-1.11">
-<code>updated_date</code>:</dt>
-            <dd style="margin-left: 1.5em" id="section-7.1.1-1.12">
-              <p id="section-7.1.1-1.12.1">OPTIONAL string. ISO 8601 date-time when the policy store was last modified.<a href="#section-7.1.1-1.12.1" class="pilcrow">¶</a></p>
-</dd>
           <dd class="break"></dd>
 </dl>
 <p id="section-7.1.1-2">Implementations MUST NOT add additional top-level keys to <code>metadata.json</code> unless documented by a future revision of this specification. The <code>policy_store</code> object MUST NOT contain keys other than those defined here unless documented by a future revision.<a href="#section-7.1.1-2" class="pilcrow">¶</a></p>
@@ -1927,8 +1921,7 @@ policy-store-root/
     "name": "Acme Analytics Web Application",
     "description": "Policies for the analytics web application.",
     "version": "1.2.0",
-    "created_date": "2025-01-15T10:30:00Z",
-    "updated_date": "2025-01-18T14:22:00Z"
+    "created_date": "2025-01-15T10:30:00Z"
   }
 }
 </pre>
@@ -2419,8 +2412,7 @@ See the <span><a href="#policy-store-api-specification" class="internal xref">Po
         "name": { "type": "string" },
         "description": { "type": "string" },
         "version": { "type": "string" },
-        "created_date": { "type": "string", "format": "date-time" },
-        "updated_date": { "type": "string", "format": "date-time" }
+        "created_date": { "type": "string", "format": "date-time" }
       },
       "additionalProperties": false
     }

@@ -308,9 +308,6 @@ The top-level JSON object MUST contain the following keys:
 `created_date`:
 : OPTIONAL string. ISO 8601 date-time when the policy store was created.
 
-`updated_date`:
-: OPTIONAL string. ISO 8601 date-time when the policy store was last modified.
-
 Implementations MUST NOT add additional top-level keys to `metadata.json` unless documented by a future revision of this specification. The `policy_store` object MUST NOT contain keys other than those defined here unless documented by a future revision.
 
 ### Example (non-normative)
@@ -324,8 +321,7 @@ Implementations MUST NOT add additional top-level keys to `metadata.json` unless
     "name": "Acme Analytics Web Application",
     "description": "Policies for the analytics web application.",
     "version": "1.2.0",
-    "created_date": "2025-01-15T10:30:00Z",
-    "updated_date": "2025-01-18T14:22:00Z"
+    "created_date": "2025-01-15T10:30:00Z"
   }
 }
 ~~~
@@ -581,8 +577,7 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
         "name": { "type": "string" },
         "description": { "type": "string" },
         "version": { "type": "string" },
-        "created_date": { "type": "string", "format": "date-time" },
-        "updated_date": { "type": "string", "format": "date-time" }
+        "created_date": { "type": "string", "format": "date-time" }
       },
       "additionalProperties": false
     }
