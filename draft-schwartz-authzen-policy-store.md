@@ -420,13 +420,13 @@ The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication betwe
 
 # Update to Policy Decision Point Metadata {#update-pdp-metadata}
 
-This specification adds a new Policy Decision Point Metadata endpoint parameter to the [existing AuthZen parameter list](https://openid.net/specs/authorization-api-1_0.html#name-endpoint-parameters). The new parameter should be added as mentioned below:
+This specification adds a new Policy Decision Point Metadata endpoint parameter to the [existing AuthZEN parameter list](https://openid.net/specs/authorization-api-1_0.html#name-endpoint-parameters). The new parameter should be added as mentioned below:
 
 `policy_store_endpoint`: OPTIONAL. HTTPS URL of the Policy Decision Point's Policy store endpoint 
 
-The parameter should be registered in the IANA registry as established under [IANA Considerations](#iana-considerations). The parameter should be obtainable using the AuthZen `.well-known/authzen-configuration` in the same way as described in the [relevant section](https://openid.net/specs/authorization-api-1_0.html#name-obtaining-policy-decision-p) of the Authzen Authorization API Specification.
+The parameter should be registered in the IANA registry as established under [IANA Considerations](#iana-considerations). The parameter should be obtainable using the AuthZEN `.well-known/authzen-configuration` in the same way as described in the [relevant section](https://openid.net/specs/authorization-api-1_0.html#name-obtaining-policy-decision-p) of the AuthZEN Authorization API Specification.
 
-A request such as below to the AuthZen `.well-known` endpoint should include the `policy_store_endpoint` parameter if the Policy Decision Point supports this endpoint.
+A request such as below to the AuthZEN `.well-known` endpoint should include the `policy_store_endpoint` parameter if the Policy Decision Point supports this endpoint.
 
 ~~~
 GET /.well-known/authzen-configuration HTTP/1.1
@@ -537,7 +537,7 @@ PDP should protect this API endpoint by taking appropriate measures to authentic
 
 # IANA Considerations
 
-The AuthZen working group has defined a metadata registry for OpenID AuthZEN Policy Decision Points (PDPs), [[AUTHZEN-PDP-METADATA]](https://openid.github.io/authzen/#name-authzen-policy-decision-poi). This document extends that registry with requirement to add policy store API to the registry with following metadata.
+The AuthZEN working group has defined a metadata registry for OpenID AuthZEN Policy Decision Points (PDPs), [[AUTHZEN-PDP-METADATA]](https://openid.github.io/authzen/#name-authzen-policy-decision-poi). This document extends that registry with requirement to add policy store API to the registry with following metadata.
 
 Metadata Name:
 `policy_store_endpoint`
