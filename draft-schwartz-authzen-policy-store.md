@@ -294,7 +294,7 @@ The top-level JSON object MUST contain the following keys:
 ### policy_store Object
 
 `id`:
-: REQUIRED string. A unique identifier for the policy store, expressed as a hexadecimal string between 15 and 64 characters inclusive.
+: REQUIRED string. A unique identifier for the policy store. It MUST be a URI conforming to RFC 3986 and MUST uniquely identify the logical Policy
 
 `name`:
 : REQUIRED string. A human-readable name for the policy store.
@@ -336,7 +336,7 @@ Trusted issuer configuration files describe identity providers whose tokens a PD
 Each trusted issuer file MUST be a JSON object with:
 
 `id`:
-: REQUIRED string. Unique identifier for the issuer (hexadecimal, 15–64 characters).
+: REQUIRED string. Unique identifier for the issuer. It MUST be a URI conforming to RFC 3986 and MUST uniquely identify the logical Policy
 
 `name`:
 : REQUIRED non-empty string. Short human-readable name.
@@ -345,7 +345,7 @@ Each trusted issuer file MUST be a JSON object with:
 : OPTIONAL string.
 
 `configuration_endpoint`:
-: REQUIRED string. URI of the issuer configuration document (for example, OpenID Provider Metadata per {{RFC8615}}).
+: REQUIRED string. URI of the issuer configuration document (for example, OpenID Provider URI per {{RFC8615}}).
 
 `token_metadata`:
 : OPTIONAL object. Maps token type names (such as `access_token`, `id_token`) to per-type configuration objects.
@@ -573,7 +573,7 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
       "type": "object",
       "required": ["id", "name"],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-fA-F0-9]{15,64}$" },
+        "id": { "type": "string", "format": "uri"},
         "name": { "type": "string" },
         "description": { "type": "string" },
         "version": { "type": "string" },
@@ -594,7 +594,7 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
   "type": "object",
   "required": ["id", "name", "configuration_endpoint"],
   "properties": {
-    "id": { "type": "string", "pattern": "^[a-fA-F0-9]{15,64}$" },
+    "id": { "type": "string", "format": "uri"},
     "name": { "type": "string", "minLength": 1 },
     "description": { "type": "string" },
     "configuration_endpoint": { "type": "string", "format": "uri" },
