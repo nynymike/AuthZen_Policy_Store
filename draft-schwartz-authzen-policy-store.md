@@ -7,11 +7,12 @@ wg: OpenID AuthZEN
 
 docname: draft-schwartz-authzen-policy-store
 
-title: AuthZEN Policy Store Format
-abbrev: policy-store
+title: AuthZEN Policy Store API
+abbrev: policy-store-api
 lang: en
 kw:
  - Authorization
+ - API
  - Policy Store
  - PDP
  - AuthZEN
@@ -63,7 +64,7 @@ informative:
 
 --- abstract
 
-This document defines the AuthZEN Policy Store Format and an API for managing policy stores. A policy store is a Policy Decision Point (PDP) neutral packaging format for co-locating authorization policies, schema, default entities, trusted token issuers, and related metadata required for evaluation. The format supports a directory structure for development and version control, and a compressed archive format (`.cjar`, Constraint JAR) for distribution and deployment. Policy stores packaged in this format improve interoperability among PDPs, tooling, and the OpenID AuthZEN ecosystem regardless of underlying policy language or engine. PDP also serves the policy store API that allows administrators to upload the updated versions of the policy store. API does not allow updates to an existing store or deletion of the same.
+This document defines the policy store API and the AuthZEN Policy Store Format for policy store distribution and interoperability. The policy store API is exposed by conforming PDPs, and provides a canonical way of supplying authorisation policies and thier evaluation environment in form of policy store to the PDP. The API does not allow updates to an existing store or deletion of the same. A policy store is a Policy Decision Point (PDP) neutral packaging format for co-locating authorization policies, schema, default entities, trusted token issuers, and related metadata required for evaluation. The format supports a directory structure for development and version control, and a compressed archive format (`.cjar`, Constraint JAR) for distribution and deployment. Policy stores packaged in this format improve interoperability among PDPs, tooling, and the OpenID AuthZEN ecosystem regardless of underlying policy language or engine. 
 
 --- middle
 
@@ -80,6 +81,12 @@ This document defines version 1.0 of the AuthZEN Policy Store Format.
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 ({{RFC2119}}) when, and only when, they appear in all capitals, as shown here.
 
 ## Terminology
+
+Policy Store API:
+: API implemented by conforming PDPs to accept policy store data
+
+Policy Store API Endpoint:
+: Endpoint `/access/v1/policy-store` exposed by PDP that implement Policy Store API
 
 Policy Store:
 : A structured collection of policies, schema, and related artifacts bound together for evaluation, as defined in this document.
@@ -103,7 +110,7 @@ Policy Decision Point (PDP):
 
 ## Policy store API
 
-The policy store API defines a single POST‑only HTTP API endpoint that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. This API enables PDP administrators to upload the updated versions of the policy stores. API does not expose HTTP methods that allow updates or deletion of the existing policy stores. This ensures that the policy stores are treated as immutable stores and can be versioned and rolled back easily.
+The policy store API defines a single POST‑only HTTP API endpoint that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. Policy store API is implemented by a PDP that conforms to this specification. This API enables PDP administrators to upload the updated versions of the policy stores. API does not expose HTTP methods that allow updates or deletion of the existing policy stores. This ensures that the policy stores are treated as immutable stores and can be versioned and rolled back easily.
 
 ## Policy store
 
@@ -126,6 +133,18 @@ The Archive Format is a ZIP archive containing the same relative paths as the Di
 # Policy Store API Specification
 
 Policy store API defines `/access/v1/policy-store` endpoint for uploading the policy store.
+
+## Usage
+
+- Conforming PDPs should implement `/access/v1/policy-store` endpoint
+- A policy administrator or a policy administration point system (PAP) should use this PDP endpoint to upload policy store (cjar) to the PDP.
+- Upon successful upload of a new policy store, the PDP MUST start using the new policy store to evaluate future authorization requests
+- Before uploading the policy store to the PDP, the policy administrator MUST ensure the validity of the policy store and correct version management. 
+- PDP implementations MUST not implement policy store lifecycle management capability using this endpoint.
+
+## Relationship to NMOP Policy Sharing Model
+
+Separation of responsibilities between policy store governance and distribution may follow [NMOP policy sharing model draft](https://www.ietf.org/archive/id/draft-cabanillas-nmop-authz-policy-sharing-model-03.html#section-6.2) recommendations. 
 
 ## API Request {#api-request}
 
@@ -291,6 +310,9 @@ The top-level JSON object MUST contain the following keys:
 `policy_store`:
 : REQUIRED object containing policy store metadata fields defined below.
 
+`governance`:
+: REQUIRED object containing governance related metadata fields defined below.
+
 ### policy_store Object
 
 `id`:
@@ -310,6 +332,18 @@ The top-level JSON object MUST contain the following keys:
 
 Implementations MUST NOT add additional top-level keys to `metadata.json` unless documented by a future revision of this specification. The `policy_store` object MUST NOT contain keys other than those defined here unless documented by a future revision.
 
+### governance Object
+
+`owner`:
+: User name of the owner. Owner is an organisational entity reponsible for the policy store
+
+`author`:
+: User name of the author. Author is an organisational entity that authored the policy store
+
+`scope`:
+: Uniquely identifieable domain or area within the organisation to which the policies 
+in the policy store should be applied to.
+
 ### Example (non-normative)
 
 ~~~ json
@@ -322,6 +356,11 @@ Implementations MUST NOT add additional top-level keys to `metadata.json` unless
     "description": "Policies for the analytics web application.",
     "version": "1.2.0",
     "created_date": "2025-01-15T10:30:00Z"
+  },
+  "governance": {
+  "owner": "urn:acme:user:ownername",
+  "author": "urn:acme:user:authorname",
+  "scope": "urn:example:application:analytics"
   }
 }
 ~~~
