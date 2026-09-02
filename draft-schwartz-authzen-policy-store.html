@@ -1637,17 +1637,26 @@ li > p:last-of-type:only-child {
 </li>
         </ul>
 <p id="section-4.3-3"><strong>Example Request</strong>:<a href="#section-4.3-3" class="pilcrow">¶</a></p>
-<p id="section-4.3-4">```http
-POST /access/v1/policy-store HTTP/1.1<a href="#section-4.3-4" class="pilcrow">¶</a></p>
-<p id="section-4.3-5">Host: api.example.com<a href="#section-4.3-5" class="pilcrow">¶</a></p>
-<p id="section-4.3-6">Content-Type: multipart/form-data; boundary=---XYZ<a href="#section-4.3-6" class="pilcrow">¶</a></p>
-<p id="section-4.3-7">-----XYZ<a href="#section-4.3-7" class="pilcrow">¶</a></p>
-<p id="section-4.3-8">Content-Disposition: form-data; name="file"; filename="store.cjar"<a href="#section-4.3-8" class="pilcrow">¶</a></p>
-<p id="section-4.3-9">Content-Type: application/zip<a href="#section-4.3-9" class="pilcrow">¶</a></p>
-<p id="section-4.3-10">&lt;binary .cjar content&gt;<a href="#section-4.3-10" class="pilcrow">¶</a></p>
-<p id="section-4.3-11">-----XYZ--
-```<a href="#section-4.3-11" class="pilcrow">¶</a></p>
-<p id="section-4.3-12">Refer to <a href="#transport" class="auto internal xref">Section 13</a> for more details.<a href="#section-4.3-12" class="pilcrow">¶</a></p>
+<div class="lang-http sourcecode" id="section-4.3-4">
+<pre>
+POST /access/v1/policy-store HTTP/1.1
+
+Host: api.example.com
+
+Content-Type: multipart/form-data; boundary=---XYZ
+
+-----XYZ
+
+Content-Disposition: form-data; name="file"; filename="store.cjar"
+
+Content-Type: application/zip
+
+&lt;binary .cjar content&gt;
+
+-----XYZ--
+</pre><a href="#section-4.3-4" class="pilcrow">¶</a>
+</div>
+<p id="section-4.3-5">Refer to <a href="#transport" class="auto internal xref">Section 13</a> for more details.<a href="#section-4.3-5" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="api-response">

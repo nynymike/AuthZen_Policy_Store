@@ -172,7 +172,7 @@ The **`/access/v1/policy-store`** endpoint is a POST-only HTTP API that accepts 
 
 **Example Request**:
 
-```http
+~~~http
 POST /access/v1/policy-store HTTP/1.1
 
 Host: api.example.com
@@ -188,7 +188,7 @@ Content-Type: application/zip
 <binary .cjar content>
 
 -----XYZ--
-```
+~~~
 
 Refer to {{transport}} for more details.
 
