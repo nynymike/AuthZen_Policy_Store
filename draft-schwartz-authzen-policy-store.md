@@ -61,34 +61,44 @@ informative:
    author:
    - name: OpenID AuthZEN Working Group
      org: OpenID Foundation
+ BCP-14:
+   title: BCP 14
+   target: https://www.rfc-editor.org/info/bcp14/
+   author:
+   - name: IETF
+     org: IETF      
+ AVP:
+   title: Amazon Verified Permissions
+   target: https://aws.amazon.com/verified-permissions/
+   author:
+   - name: Amazon Web Services
+     org: Amazon Inc.
 
 --- abstract
 
-This document defines the policy store API and the AuthZEN Policy Store Format for policy store distribution and interoperability. The policy store API is implemented by conforming PDPs. This API provides a canonical way of supplying authorization policies and their evaluation environment to the PDP. 
+This document defines the policy store API and the AuthZEN Policy Store format for policy store distribution and interoperability. The policy store API is to be implemented by conforming Policy Decision Point (PDP). This API provides a canonical way of supplying authorization policies and their evaluation environment to the PDP. 
 
-This document also defines a Policy Decision Point (PDP) neutral, canonical directory structure for co-locating authorization policies and metadata required to evaluate those policies. Using a canonical and well known structure to organise policies, schema, default entities, trusted token issuers, and related metadata helps improve discoverability of these artifacts without specific configurations and hence improving interoperability across different policy engines and ecosystem tools like policy authoring tools. This canonical directory structure is refered to as the `policy store`. This specification further defines a compressed archive format (`.cjar`, Constraint JAR) of the policy store for ease of distribution, versioning and deployment. 
+This document also defines Policy Store format, a PDP neutral, canonical directory structure for co-locating authorization policies and metadata required to evaluate those policies. Using a canonical and well known structure to organise policies, schema, default entities, trusted token issuers, and related metadata helps improve discoverability of these artifacts without PDP specific configuration and hence improving interoperability across different policy engines and ecosystem tools like policy authoring tools. This canonical directory structure is referred to as the `policy store`. This specification further defines a compressed archive format (`.cjar`, Constraint JAR) of the policy store for ease of distribution, versioning and deployment. 
 
 --- middle
 
 # Introduction
 
-Organizations may have multiple areas and groups that use different policy languages to define their authorization policies. Along with policies, they also define schema, default entities, trusted token issuers, and related metadata required to evaluate those policies using Policy Decision Points (PDPs). Today, organizations structure these artifacts in the way that is dictated by the PDP that is in use at that point in time. If organization wants to use a different PDP that understand the same policy language, it needs to either restructure these artifacts to conform to the format required by the new PDP or configure the PDP to adopt existing structure. Today, PDPs and policy engines such as Cedar ({{CEDAR}}) and Cerbos ({{CERBOS}}) do not understand a common structure to organize, package and version those artifacts together. This impedes portability, auditability, and interoperability among PDPs and third-party tools.
+Organizations may have multiple areas and groups that use different policy languages to define their authorization policies. Along with policies, they also define schema, default entities, trusted token issuers, and related metadata required to evaluate those policies using Policy Decision Points (PDPs). Today, organizations structure these artifacts in the way that is dictated by the PDP that is in use at that point in time. If organization wants to use a different PDP that understand the same policy language, it needs to either restructure these artifacts to conform to the format required by the new PDP or configure the PDP to adopt existing structure. Today, PDPs and policy engines such as Cedar ({{CEDAR}}), Amazon Verified Permissions ({{AVP}}) and Cerbos ({{CERBOS}}) do not understand a common structure to organize, package and version those artifacts together. This impedes portability, auditability, and interoperability among PDPs and third-party tools.
 
 Policy store API together with the policy store directory structure and the `cjar` archive format, creates a commonly understood way of structuring, distributing, validating policies and related metadata artifacts.
 
-Organizations may choose to adopt policy store format to author their policies and related metadata in the language of their choice. The structure is policy language agnostic. Any PDPs can choose to be able to consume this policy store format. It is PDP(or policy engine) agnostic. 
+The policy store directory structure is policy language and PDP(or policy engine) neutral. Organizations may choose to adopt the policy store format to author their policies and related metadata in the language of their choice. At the same time, any PDPs can choose conform to this specification to be able to consume the policy store format. For instance, an organization may store its policies, schema and related metadata in this canonical format so that any conforming PDP can easily consume it. If policies are written using Cedar, any Cedar based conforming PDP(Cedarling, Amazon Verified Permissions) can consume it. If policies are written using CEL, any CEL based conforming PDP can consume it. 
 
-For instance, an organisation may store its policies, schema and related metadata in this canonical format so that any conforming PDP can easily consume it. If policies are writen using Cedar, any conforming Cedar based PDP(Cedarling, Amazon Verified Permissions) can consume it. If policies are writen using CEL, any CEL based PDP can consume it. 
+Note: A realization of this policy store is policy language specific. But still agnostic about PDP policy engine as long as the PDP understands the same policy language.
 
-Note: A realization of this policy store is policy language specific, but still agnostic about PDP policy engine as long as the PDP understands the same policy language.
-
-The OpenID AuthZEN Working Group defines protocols and patterns for authorization interoperability, including the Authorization API ({{AUTHZEN-API}}). This specification complements AuthZEN by defining policy store API and a portable, PDP neutral, self-contained **policy store** format that any conforming PDP or tool MAY load, validate, and exchange without proprietary layout conventions.
+The OpenID AuthZEN Working Group defines protocols and patterns for authorization interoperability, including the Authorization API ({{AUTHZEN-API}}). This specification complements AuthZEN by defining policy store API and a portable, PDP neutral, self-contained policy store format that any conforming PDP or tool MAY load, validate, and exchange without proprietary layout conventions.
 
 This document defines version 1.0 of the AuthZEN Policy Store API.
 
 # Conventions and Definitions
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 ({{RFC2119}}) when, and only when, they appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 ({{BCP-14}}) and  when, and only when, they appear in all capitals, as shown here.
 
 ## Terminology
 
@@ -102,7 +112,7 @@ Policy Store:
 : A structured collection of policies, schema, and related artifacts bound together for evaluation, as defined in this document.
 
 Policy Language:
-: The policy language and evaluation implementation used by a PDP (for example, Cedar or Cerbos). Identified in `metadata.json` by `policy_language` and `policy_language_version`.
+: The policy language to author policies in the policy store (for example, Cedar or CEL). Identified in `metadata.json` by `policy_language` and `policy_language_version`.
 
 Directory Format:
 : A policy store represented as a folder hierarchy on a filesystem.
@@ -120,21 +130,20 @@ Policy Decision Point (PDP):
 
 ## Policy store API
 
-The policy store API defines a single POST‑only HTTP API endpoint that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. Policy store API specifies `/access/v1/policy-store` endpoint which MUST be implemented by any PDP that conforms to this specification. This endpoint enables PDP administrators to upload the updated versions of the policy stores. API does not expose HTTP methods that allow updates or deletion of the existing policy stores. 
+The policy store API defines a single POST‑only HTTP API endpoint that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. Policy store API specifies `/access/v1/policy-store` endpoint which MUST be implemented by any PDP that conforms to this specification. This endpoint enables authorized PDP administrators or PAP system to upload the updated versions of the policy stores to the PDP. API does not expose HTTP methods that allow updates or deletion of the existing policy stores. 
 
 ## Policy store
 
 A **policy store** bundles together the artifacts that a PDP needs to evaluate authorization requests against a known schema and configuration baseline. These artifacts include:
 
-* Policy language declaration in `metadata.json`
-* Policies (one policy document per file under `policies/`)
+* Required policy store metadata (`metadata.json`)
+* Required Policies (one policy document per file under `policies/`)
 * Optional schema (`schema/`)
 * Optional policy templates (`templates/`)
 * Optional default entities (`entities/`)
 * Optional trusted issuer configuration (`trusted-issuers/`)
-* Required metadata (`metadata.json`)
 
-The syntax and semantics of policy documents, schema files, and entity types are defined by the declared **policy language**. This specification defines the container layout, metadata, and interchange formats only.
+This document does not define the syntax and semantics of policy documents, schema files, and entity types. These are defined by the declared policy language. This specification defines the container layout, metadata, and interchange formats only.
 
 Implementations MAY support either the Directory Format or the Archive Format(.cjar), or both. Tools that produce or consume policy stores SHOULD support conversion between formats without loss of content.
 
@@ -148,7 +157,6 @@ Policy store API defines `/access/v1/policy-store` endpoint for uploading the po
 
 - Conforming PDPs should implement `/access/v1/policy-store` endpoint
 - A policy administrator or a Policy Administration Point(PAP) should use this PDP endpoint to upload policy store (cjar) to the PDP
-- Upon successful upload of a new policy store, the PDP MUST start using the new policy store to evaluate future authorization requests
 - Before uploading the policy store to the PDP, the policy administrator MUST ensure the validity of the policy store and correct version management. 
 - PDP implementations MUST not implement policy store lifecycle management capability using this endpoint.
 
@@ -158,34 +166,32 @@ Separation of responsibilities between policy store governance and distribution 
 
 ## API Request {#api-request}
 
-The **`/access/v1/policy-store`** endpoint is a POST‑only HTTP API that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. The request body must be a multipart/form‑data upload with the following parts:
+The **`/access/v1/policy-store`** endpoint is a POST-only HTTP API that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. The request body MUST be a `multipart/form-data` upload with the following part:
 
-- **file**: The `.cjar` archive.
-- **metadata**: A JSON object providing:
-  - `version` (string): The version of the policy store.
-  - `created_timestamp` (string, ISO‑8601): The creation date‑time of the uploaded policy store.
+* **file**: The `.cjar` archive. 
 
 **Example Request**:
 
-~~~http
+```http
 POST /access/v1/policy-store HTTP/1.1
+
 Host: api.example.com
+
 Content-Type: multipart/form-data; boundary=---XYZ
 
 -----XYZ
+
 Content-Disposition: form-data; name="file"; filename="store.cjar"
+
 Content-Type: application/zip
 
 <binary .cjar content>
------XYZ
-Content-Disposition: form-data; name="metadata"
-Content-Type: application/json
 
-{"version":"1.0.0","created_timestamp":"2026-07-15T10:30:00Z"}
 -----XYZ--
-~~~
+```
 
-Refer to ({{transport}}) for more details.
+Refer to {{transport}} for more details.
+
 
 ## API Response {#api-response}
 
@@ -241,7 +247,7 @@ policy-store-root/
 ## Optional Directories
 
 `schema/`:
-: OPTIONAL. When present, contains one or more schema artifacts to support policy evaluation. File names and formats are defined by the policy language documentation. PDPs that require schema for evaluation MUST reject a policy store that omits `schema/` when schema is required for the policies it contains.
+: OPTIONAL. When present, contains one or more schema artifacts to support policy evaluation. File names and formats are defined by the policy language documentation. PDPs that require schema for evaluation MUST reject a policy store that omits `schema/`.
 
 `templates/`:
 : OPTIONAL. Contains policy template documents when supported by the policy language. Each file MUST contain exactly one template document.
@@ -345,13 +351,13 @@ Implementations MUST NOT add additional top-level keys to `metadata.json` unless
 ### governance Object
 
 `owner`:
-: A URN identifier that uniquely identifies an organisational entity reponsible for the policy store 
+: A URN identifier that uniquely identifies an organizational entity accountable for the policy store 
 
 `author`:
-: A URN identifier that uniquely identifies an organisational entity reponsible for the policy store
+: A URN identifier that uniquely identifies an organizational entity who creates or authors the policy store
 
 `scope`:
-: URN identifier for the domain or the area within the organisation to which the policies 
+: A URN identifier for the domain or the area within the organization to which the policies 
 in the policy store should be applied to.
 
 ### Example (non-normative)
@@ -361,7 +367,7 @@ in the policy store should be applied to.
   "policy_language": "cedar",
   "policy_language_version": "4.4.0",
   "policy_store": {
-    "id": "9e96b204911d1c3",
+    "id": "http://acme.com/apps/analytics/policystore/",
     "name": "Acme Analytics Web Application",
     "description": "Policies for the analytics web application.",
     "version": "1.2.0",
@@ -461,9 +467,10 @@ Failure at any REQUIRED validation step SHOULD result in rejecting the policy st
 
 # Relationship to AuthZEN
 
-The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication between PEPs and PDPs. Policy store API standardizes how policy artifacts are packaged so that:
+The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication between PEPs and PDPs. This specification standardizes how policy artifacts are packaged and distributed 
+so that:
 
-* PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format regardless of policy engine.
+* PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format 
 * CI/CD pipelines MAY version, review, and promote policy stores as atomic units.
 * Audit systems MAY bind decision logs to a specific `policy_store.id`.
 
@@ -516,18 +523,6 @@ A successful response is an HTTPS response with a status code of 201 Created and
 
 The request URL MUST be the value of the `policy_store_endpoint` parameter ({{update-pdp-metadata}}) if provided in the Policy Decision Point metadata. If the parameter is omitted, the URL SHOULD be formed by appending the default path (as defined in table-1) to the PDP’s base URL. PDP's base URL should be obtained from the value of `policy_decision_point` parameter of the Policy Decision Point metadata as defined by AuthZEN Authorization API ({{AUTHZEN-API}}), if available.
 
-### Serialization
-
-The `metadata` part of the multipart request MUST be serialized as a JSON object [[RFC8259]]. Implementations MUST ignore unknown fields to ensure forward compatibility.
-
-The data types defined in this specification are mapped to JSON types as follows:
-
-Object:
-Represented as a JSON object (Section 4 of [RFC8259]). The values of its members can be any valid JSON value as defined in Section 3 of [RFC8259], including other objects and arrays, unless specified otherwise.
-
-String:
-Represented as a JSON string (Section 7 of [RFC8259]).
-
 ### Error Responses
 
 Error responses use HTTPS status codes to indicate failures. The PDP MUST return a 400 Bad Request if the multipart body is malformed or if required parts are missing. Authentication and authorization failures MUST return 401 Unauthorized or 403 Forbidden respectively.
@@ -559,11 +554,6 @@ Content-Disposition: form-data; name="file"; filename="store.cjar"
 Content-Type: application/zip
 
 <binary .cjar content>
------XYZ
-Content-Disposition: form-data; name="metadata"
-Content-Type: application/json
-
-{"version":"1.0.0","created_timestamp":"2026-07-15T10:30:00Z"}
 -----XYZ--
 ~~~
 
@@ -614,19 +604,27 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["policy_language", "policy_language_version", "policy_store"],
+  "required": ["policy_language", "policy_language_version", "policy_store", "governance"],
   "properties": {
     "policy_language": { "type": "string", "minLength": 1 },
     "policy_language_version": { "type": "string", "minLength": 1 },
     "policy_store": {
       "type": "object",
-      "required": ["id", "name"],
+      "required": ["id", "name", "version"],
       "properties": {
         "id": { "type": "string", "format": "uri"},
         "name": { "type": "string" },
         "description": { "type": "string" },
         "version": { "type": "string" },
         "created_date": { "type": "string", "format": "date-time" }
+      },
+      "governance": {
+      "type": "object",
+      "required": ["owner", "author", "scope"],
+      "properties": {
+        "owner": { "type": "string", "format": "urn"},
+        "author": { "type": "string", "format": "urn"},
+        "scope": { "type": "string", "format": "urn"}
       },
       "additionalProperties": false
     }
@@ -742,9 +740,14 @@ todo-app-policy-store/
   "policy_language": "cedar",
   "policy_language_version": "4.4.0",
   "policy_store": {
-    "id": "9496b204911615307f6338de8a18c6885f2370793c31",
+    "id": "http://acme.com/apps/todo/policystore/",
     "name": "todo_app_policy_store",
     "version": "1.0.0"
+  },
+  "governance": {
+  "owner": "urn:acme:user:ownername",
+  "author": "urn:acme:user:authorname",
+  "scope": "urn:example:application:analytics"
   }
 }
 ~~~
@@ -762,9 +765,9 @@ permit(
 
 The same store MAY be distributed as `todo-app-policy-store-v1.0.0.cjar`.
 
-## Cerbos PDP Example
+## CEL PDP Example
 
-A CEL based Cerbos PDP ({{CERBOS}}) might use `policy_language` value `"CEL"`, store JSON schemas under `schema/`, and use YAML policy files under `policies/`:
+A CEL based Cerbos PDP ({{CERBOS}}) may consume a policy store which has `policy_language` value `"CEL"`, store JSON schemas under `schema/`, and use YAML policy files under `policies/`:
 
 ~~~ ascii-art
 hr-policy-store/
@@ -782,12 +785,17 @@ hr-policy-store/
 
 ~~~ json
 {
-  "policy_language": "cerbos",
-  "policy_language_version": "0.52.0",
+  "policy_language": "cel",
+  "policy_language_version": "0.25.0",
   "policy_store": {
-    "id": "a1b2c3d4e5f6789012345678",
+    "id": "http://acme.com/hr/policystore/",
     "name": "hr_policy_store",
     "version": "2.0.0"
+  },
+  "governance": {
+  "owner": "urn:acme:user:ownername",
+  "author": "urn:acme:user:authorname",
+  "scope": "urn:example:application:analytics"
   }
 }
 ~~~
