@@ -80,7 +80,7 @@ This document defines the AuthZEN Policy Store API and the Policy Store format f
 
 The Policy Store API is implemented by a conforming Policy Decision Point (PDP). It provides a standard way to supply authorization policies and the artifacts required to evaluate them to a PDP.
 
-The Policy Store format defines a canonical, PDP-neutral directory structure for organizing authorization policies and their associated metadata. It provides a common structure for policies, schemas, default entities, trusted token issuers, and other artifacts required for policy evaluation. Using a well-known structure reduces the need for PDP-specific configuration. It also improves the discoverability and portability of these artifacts across ecosystem tools like policy authoring tools, management and deployment tools.
+The Policy Store format defines a canonical, PDP-neutral directory structure for organizing authorization policies and their associated metadata. It provides a common structure for policies, schemas, default entities, trusted token issuers, and other artifacts required for policy evaluation. Using a well-known structure reduces the need for PDP-specific configuration. It also improves the discoverability and portability of these artifacts across ecosystem tools like policy authoring tools, management, and deployment tools.
 
 This specification also defines a compressed archive format (.cjar, Constraint JAR) for packaging a Policy Store for distribution, versioning, and deployment. 
 
@@ -106,7 +106,7 @@ This document defines version 1.0 of the AuthZEN Policy Store API.
 
 # Conventions and Definitions
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 ({{BCP-14}}) and  when, and only when, they appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 ({{BCP-14}}) and when, and only when, they appear in all capitals, as shown here.
 
 ## Terminology
 
@@ -114,7 +114,7 @@ Policy Store API:
 : API implemented by conforming PDPs to accept policy store data
 
 Policy Store API Endpoint:
-: Endpoint `/access/v1/policy-store` exposed by PDP that implement Policy Store API
+: Endpoint `/access/v1/policy-store` exposed by PDPs that implement Policy Store API
 
 Policy Store:
 : A structured collection of policies, schema, and related artifacts bound together for evaluation, as defined in this document.
@@ -138,7 +138,7 @@ Policy Decision Point (PDP):
 
 ## Policy store API
 
-The policy store API defines a single POST‑only HTTP API endpoint that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. Policy store API specifies `/access/v1/policy-store` endpoint which MUST be implemented by any PDP that conforms to this specification. This endpoint enables authorized PDP administrators or PAP system to upload the updated versions of the policy stores to the PDP. API does not expose HTTP methods that allow updates or deletion of the existing policy stores. 
+The policy store API defines a single POST‑only HTTP API endpoint that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. The policy store API specifies `/access/v1/policy-store` endpoint, which MUST be implemented by any PDP that conforms to this specification. This endpoint enables authorized PDP administrators or a PAP system to upload updated versions of the policy stores to the PDP. API does not expose HTTP methods that allow updates or deletion of the existing policy stores. 
 
 ## Policy store
 
@@ -159,12 +159,12 @@ The Archive Format is a ZIP archive containing the same relative paths as the Di
 
 # Policy Store API Specification
 
-Policy store API defines `/access/v1/policy-store` endpoint for uploading the policy store.
+Policy Store API defines `/access/v1/policy-store` endpoint for uploading the policy store.
 
 ## Usage
 
-- Conforming PDPs should implement `/access/v1/policy-store` endpoint
-- A policy administrator or a Policy Administration Point(PAP) should use this PDP endpoint to upload policy store (cjar) to the PDP
+- Conforming PDPs should implement the `/access/v1/policy-store` endpoint
+- A policy administrator or a Policy Administration Point(PAP) should use this PDP endpoint to upload the policy store (cjar) to the PDP
 - Before uploading the policy store to the PDP, the policy administrator MUST ensure the validity of the policy store and correct version management. 
 - PDP implementations MUST not implement policy store lifecycle management capability using this endpoint.
 
@@ -203,7 +203,7 @@ Refer to {{transport}} for more details.
 
 ## API Response {#api-response}
 
-The server validates the uploaded file and metadata. On success it stores the file and returns **201 Created** with a JSON body containing the assigned identifier. On validation failure it returns **400 Bad Request** with an error description.
+The server validates the uploaded file and metadata. On success, it stores the file and returns **201 Created** with a JSON body containing the assigned identifier. On validation failure, it returns **400 Bad Request** with an error description.
 
 **Example Response (Success)**:
 
@@ -326,7 +326,7 @@ The `metadata.json` file provides version and descriptive metadata for the polic
 The top-level JSON object MUST contain the following keys:
 
 `policy_language`:
-: REQUIRED string. Identifies the policy language (for example, `"cedar"`, `"cel"`). Values SHOULD be lowercase alphanumeric strings; hyphen MAY separate words.
+: REQUIRED string. Identifies the policy language (for example, `"cedar"`, `"cel"`). Values SHOULD be lowercase alphanumeric strings; hyphens MAY separate words.
 
 `policy_language_version`:
 : REQUIRED string. Version of the policy language used by artifacts in this store (for example, `"4.4.0"` for Cedar).
@@ -335,7 +335,7 @@ The top-level JSON object MUST contain the following keys:
 : REQUIRED object containing policy store metadata fields defined below.
 
 `governance`:
-: REQUIRED object containing governance related metadata fields defined below.
+: REQUIRED object containing governance-related metadata fields defined below.
 
 ### policy_store Object
 
@@ -362,11 +362,11 @@ Implementations MUST NOT add additional top-level keys to `metadata.json` unless
 : A URN identifier that uniquely identifies an organizational entity accountable for the policy store 
 
 `author`:
-: A URN identifier that uniquely identifies an organizational entity who creates or authors the policy store
+: A URN identifier that uniquely identifies an organizational entity that creates or authors the policy store
 
 `scope`:
 : A URN identifier for the domain or the area within the organization to which the policies 
-in the policy store should be applied to.
+in the policy store should be applied.
 
 ### Example (non-normative)
 
@@ -490,7 +490,7 @@ This specification adds a new Policy Decision Point Metadata endpoint parameter 
 
 The parameter should be registered in the IANA registry as established under [IANA Considerations](#iana-considerations). The parameter should be obtainable using the AuthZEN `.well-known/authzen-configuration` in the same way as described in the [relevant section](https://openid.net/specs/authorization-api-1_0.html#name-obtaining-policy-decision-p) of the AuthZEN Authorization API Specification.
 
-A request such as below to the AuthZEN `.well-known` endpoint should include the `policy_store_endpoint` parameter if the Policy Decision Point supports this endpoint.
+A request such as the following to the AuthZEN `.well-known` endpoint should include the `policy_store_endpoint` parameter if the Policy Decision Point supports this endpoint.
 
 ~~~
 GET /.well-known/authzen-configuration HTTP/1.1
@@ -533,7 +533,7 @@ The request URL MUST be the value of the `policy_store_endpoint` parameter ({{up
 
 ### Error Responses
 
-Error responses use HTTPS status codes to indicate failures. The PDP MUST return a 400 Bad Request if the multipart body is malformed or if required parts are missing. Authentication and authorization failures MUST return 401 Unauthorized or 403 Forbidden respectively.
+Error responses use HTTPS status codes to indicate failures. The PDP MUST return a 400 Bad Request if the multipart body is malformed or if required parts are missing. Authentication and authorization failures MUST return 401 Unauthorized or 403 Forbidden, respectively.
 
 | Code | Description | HTTPS Body Content |
 | :--- | :--- | :--- |
@@ -544,7 +544,7 @@ Error responses use HTTPS status codes to indicate failures. The PDP MUST return
 
 ### Request Identification
 
-Requests MAY include a unique identifier in the `X-Request-ID` header as defined in AuthZEN Authorization API ({{AUTHZEN-API}}). If present, the PDP MUST include the same identifier in the `X-Request-ID` response header to assist in request tracing and debugging. 
+Requests MAY include a unique identifier in the `X-Request-ID` header as defined in the AuthZEN Authorization API ({{AUTHZEN-API}}). If present, the PDP MUST include the same identifier in the `X-Request-ID` response header to assist in request tracing and debugging. 
 
 ### Example (non-normative)
 
@@ -584,7 +584,7 @@ PDP should protect this API endpoint by taking appropriate measures to authentic
 
 # IANA Considerations
 
-The AuthZEN working group has defined a metadata registry for OpenID AuthZEN Policy Decision Points (PDPs), [[AUTHZEN-PDP-METADATA]](https://openid.github.io/authzen/#name-authzen-policy-decision-poi). This document extends that registry with requirement to add policy store API to the registry with following metadata.
+The AuthZEN working group has defined a metadata registry for OpenID AuthZEN Policy Decision Points (PDPs), [[AUTHZEN-PDP-METADATA]](https://openid.github.io/authzen/#name-authzen-policy-decision-poi). This document extends that registry with a requirement to add a policy store API to the registry with the following metadata.
 
 Metadata Name:
 `policy_store_endpoint`
@@ -775,7 +775,7 @@ The same store MAY be distributed as `todo-app-policy-store-v1.0.0.cjar`.
 
 ## CEL PDP Example
 
-A CEL based Cerbos PDP ({{CERBOS}}) may consume a policy store which has `policy_language` value `"CEL"`, store JSON schemas under `schema/`, and use YAML policy files under `policies/`:
+A CEL-based Cerbos PDP ({{CERBOS}}) may consume a policy store which has `policy_language` value `"CEL"`, store JSON schemas under `schema/`, and use YAML policy files under `policies/`:
 
 ~~~ ascii-art
 hr-policy-store/
@@ -837,6 +837,6 @@ The following topics may be addressed in future revisions:
 
 Copyright (c) 2026 The OpenID Foundation.
 
-The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this draft or final specification solely for the purposes of (i) developing specifications, and (ii) implementing specifications based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.
+The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this draft or final specification solely for (i) developing specifications, and (ii) implementing specifications based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.
 
 The technology described in this specification was made available from contributions from various sources, including members of the OpenID Foundation and others. Although the OpenID Foundation has taken steps to help ensure that the technology is available for distribution, it takes no position regarding the validity or scope of any intellectual property or other rights that might be claimed to pertain to the implementation or use of the technology described in this specification or the extent to which any license under such rights might or might not be available; neither does it represent that it has made any independent effort to identify any such rights. The OpenID Foundation and the contributors to this specification make no (and hereby expressly disclaim any) warranties (express, implied, or otherwise), including implied warranties of merchantability, non-infringement, fitness for a particular purpose, or title, related to this specification, and the entire risk as to implementing this specification is assumed by the implementer. The OpenID Intellectual Property Rights policy requires contributors to offer a patent promise not to assert certain patent claims against other contributors and against implementers. OpenID invites any interested party to bring to its attention any copyrights, patents, patent applications, or other proprietary rights that may cover technology that may be required to practice this specification.
