@@ -41,6 +41,9 @@ normative:
  RFC8615:
  RFC2119:
  RFC7578:
+ RFC8785:
+ RFC7515:
+ RFC7518:
 
 informative:
  CEDAR:
@@ -163,6 +166,7 @@ A **policy store** bundles together the artifacts that a PDP needs to evaluate a
 * Optional default entities (`entities/`)
 * Optional trusted issuer configuration (`trusted-issuers/`)
 * Optional custom issuer configuration (`custom-issuers/`)
+* Optional package integrity inventory and signatures (`integrity.json` and `signatures.json`), used together as defined in {{package-integrity}}
 
 This document does not define the syntax and semantics of policy documents, schema files, or entity types. These are defined by the declared policy language. This specification defines the container layout, metadata, and interchange formats only.
 
@@ -244,6 +248,8 @@ The root of a policy store (directory or archive) is referred to as the **policy
 ~~~ ascii-art
 policy-store-root/
 ├── metadata.json
+├── integrity.json      (optional profile; requires signatures.json)
+├── signatures.json     (optional profile; requires integrity.json)
 ├── policies/
 │   └── (one policy document per file)
 ├── schema/             (optional)
@@ -538,21 +544,120 @@ PDPs loading `.cjar` files SHOULD validate structure and required files before e
 
 PDPs and tools that load policy stores SHOULD perform the following steps:
 
-1. Detect format (directory or `.cjar` archive) and normalize to a directory view.
+1. Detect format (directory or `.cjar` archive), enforce Safe Package Paths ({{safe-package-paths}}), and normalize to an isolated directory view.
 2. Verify required files and directories exist.
 3. Parse and validate `metadata.json`.
 4. Confirm the implementation supports the declared `policy_store_spec_version`. A PDP MUST reject a policy store whose `policy_store_spec_version` it does not implement.
 5. Confirm the implementation supports the declared `policy_language` and `policy_language_version`, or reject the store.
-6. If present, load `schema/`; then load policies and optional templates, entities, trusted issuers, and custom issuers according to policy engine rules.
-7. Verify policy engine-specific requirements if any (such as unique policy identifiers).
-8. Verify that no schema entity type is declared by more than one issuer file, whether under `trusted-issuers/` or `custom-issuers/` ({{custom-issuers}}).
-9. If `custom-issuers/` is present, determine whether the implementation can process each declared entity type ({{custom-issuers}}).
+6. Apply the deployment's integrity requirement and, when present or required, verify the Package Integrity Profile ({{package-integrity}}). Complete verification before loading artifacts into the policy engine.
+7. If present, load `schema/`; then load policies and optional templates, entities, trusted issuers, and custom issuers according to policy engine rules.
+8. Verify policy engine-specific requirements if any (such as unique policy identifiers).
+9. Verify that no schema entity type is declared by more than one issuer file, whether under `trusted-issuers/` or `custom-issuers/` ({{custom-issuers}}).
+10. If `custom-issuers/` is present, determine whether the implementation can process each declared entity type ({{custom-issuers}}).
 
-Failure at any REQUIRED validation step SHOULD result in rejecting the policy store for evaluation.
+Failure at any REQUIRED validation step MUST result in rejecting the policy store for evaluation. Rejection MUST leave the previously active store unchanged.
+
+# Safe Package Paths {#safe-package-paths}
+
+These requirements apply to both signed and unsigned stores. Loaders MUST validate entry names before extraction or opening files. A path MUST be relative to the store root, use `/` as its separator, and contain no empty, `.` or `..` component. Absolute paths, drive-qualified paths, backslashes, NUL, and control characters MUST be rejected. Loaders MUST NOT percent-decode paths or otherwise repair invalid paths into valid ones.
+
+Loaders MUST reject duplicate file paths, file/directory conflicts, and paths that alias one another under the target filesystem's rules, including case folding and Unicode normalization. Names interpreted as device names or alternate data streams, and names that cannot be represented without filesystem rewriting, MUST be rejected. An explicit ZIP directory entry MAY end in one `/`; remove only that trailing separator when validating its directory name. Conflicting ZIP local-header and central-directory names MUST be rejected.
+
+Only regular files and directories are permitted. Symbolic links, hard links, device entries, and filesystem reparse points MUST be rejected. Loaders MUST prevent writes or reads outside an isolated store root, including through pre-existing links. They MUST enforce configured limits on entry count, total uncompressed bytes, individual file size, and decompression work before accepting a store.
+
+Verification and subsequent loading MUST use the same immutable snapshot of file bytes. Verifying a directory and later reopening mutable paths is insufficient. Archive metadata, executable bits, timestamps, and entry order MUST NOT affect policy evaluation.
+
+# Package Integrity Profile {#package-integrity}
+
+Editor's note: This section proposes an optional profile for working-group review. The profile identifier and signature choices below are provisional. They do not indicate adoption or implementation conformance.
+
+The profile adds two reserved root files: `integrity.json` and `signatures.json`. A deployment MAY accept stores without this profile, but MUST configure that decision outside the incoming package. If either reserved file is present, both MUST be present and the complete profile MUST be verified or the store rejected. A loader that does not support the profile MUST reject these stores. An integrity-required deployment MUST reject a store with either file missing; it MUST NOT retry it as an unsigned store.
+
+## Inventory and content identity
+
+`integrity.json` MUST be a UTF-8 JSON object satisfying the input constraints of {{RFC8785}}. Duplicate JSON property names MUST be rejected before they can be discarded by a parser. Its only members are:
+
+| Member | Requirement |
+| :--- | :--- |
+| `profile` | REQUIRED string, exactly `authzen-policy-store-integrity-1`. |
+| `files` | REQUIRED object mapping relative file paths to artifact descriptors. |
+
+Each descriptor MUST contain exactly these members:
+
+| Member | Requirement |
+| :--- | :--- |
+| `sha256` | REQUIRED string of 64 lowercase hexadecimal characters, the SHA-256 digest of the exact uncompressed file bytes. |
+| `media_type` | REQUIRED non-empty media type string describing the artifact representation. |
+| `critical` | REQUIRED boolean indicating that the loader must understand and process the artifact to accept the store. |
+
+`files` MUST inventory every regular file, including `metadata.json`, except the two reserved integrity files. It MUST NOT inventory directories or either reserved file. Missing files, unlisted files, duplicate paths, and digest mismatches MUST cause rejection. The inventory is subject to the same path rules as the package. It does not authorize additional directories or override the base format's content requirements.
+
+`metadata.json` MUST have media type `application/json` and `critical: true`. All policy, schema, template, entity, and issuer artifacts used for evaluation MUST be critical. A loader MUST reject a critical artifact whose representation or role it cannot process. Non-critical artifacts MAY be ignored semantically, but their bytes MUST still be verified. `application/octet-stream` describes opaque bytes; it does not establish that a loader understands them. Engine-specific artifacts require a separately agreed extension to the layout and semantics.
+
+The metadata file binds the store identifier, policy language and version, and governance claims into the inventory. JSON artifact bytes MUST NOT be reserialized, whitespace-normalized, or line-ending-normalized before hashing. The package digest is `sha256:` followed by the lowercase hexadecimal SHA-256 digest of the UTF-8 JCS serialization of the entire `integrity.json` object ({{RFC8785}}). Unknown profile identifiers or inventory members MUST be rejected. This version has no implicit extension or fallback mechanism.
+
+The digest identifies the inventoried content and descriptors. ZIP compression, ZIP entry order, and JSON object-member ordering in `integrity.json` do not change it. Changing an artifact's bytes, path, media type, or criticality does. Signatures are excluded to avoid a circular digest and permit approvals to be added without changing content identity. A digest alone does not authenticate its producer.
+
+## Provenance and approvals
+
+`signatures.json` MUST be a UTF-8 JSON array of JWS Compact Serialization strings ({{RFC7515}}), with at least one element. Duplicate JSON members MUST be rejected in decoded protected headers and payloads. Each JWS payload MUST be a UTF-8 JSON object containing exactly these three string members:
+
+| Member | Requirement |
+| :--- | :--- |
+| `profile` | Exactly `authzen-policy-store-integrity-1`. |
+| `package_digest` | The package digest computed above. |
+| `purpose` | Either `provenance` or `approval`. |
+
+Each protected header MUST contain exactly `alg` and `kid`. The latter is a non-empty identifier resolved against deployment-configured verification keys. This profile uses standard base64url-encoded JWS payloads; detached or unencoded payloads are not supported. Implementations MUST support ES256 as defined in {{RFC7518}}. Other digital-signature algorithms MAY be permitted by deployment policy. The `none` algorithm and shared-secret MAC algorithms MUST NOT be accepted.
+
+Each array element MUST be structurally valid and bind the computed package digest and profile. Unknown keys or locally disallowed algorithms do not count toward acceptance. A signature using a configured key and permitted algorithm MUST verify or the package MUST be rejected. Acceptance MUST require at least one verified provenance signature from an authorized producer and every approval required by local policy. Distinct-approver thresholds MUST count independently authorized principals, not signatures or keys; multiple keys belonging to one principal count once.
+
+The deployment MUST define which keys may assert provenance or approval for the expected store identifier and governance scope. It MUST select the expected store and scope from the authenticated administrative request or local configuration, then compare them with the verified metadata. It MUST NOT let package-supplied identifiers select a less restrictive trust policy. An approval signature does not by itself authorize upload or activation.
+
+The `governance.owner` and `governance.author` URNs remain claims. A verified signature establishes that an authorized key endorsed the bound content; linking that key to an organization or an accountable role requires the deployment's independent identity and authorization policy. The package's `trusted-issuers/` files govern evaluation tokens and MUST NOT establish trust in package signers.
+
+Trust anchors, permitted algorithms, approval thresholds, key validity periods, and revocation status MUST be managed outside the incoming package. Key rotation MAY allow a configured overlap, but a package cannot introduce its own replacement trusted key. A revoked key MUST NOT count toward new acceptance. Previously activated content requires a deployment decision when its signer is revoked; this format does not provide a revocation service. If required current trust information is unavailable, the loader MUST reject new activation.
+
+## Loading, activation, and rollback
+
+After safe path and structural validation, a loader MUST verify the complete inventory, calculate the package digest, and enforce signature and trust policy before any policy-engine evaluation or issuer processing. It MUST then apply the base format's metadata, language, and engine validation rules to the same snapshot. Successful signature verification does not establish policy correctness or safe issuer configuration.
+
+Publishing, fetching, uploading, approving, and activating are separate permissions. The existing upload endpoint remains subject to administrative authentication and authorization; accepting a package MUST NOT grant its producer permission to activate it. This profile adds no activation, rollback, or revocation API and no ability for a resource to push policy into a PDP.
+
+A valid old signature remains cryptographically valid. Deployments MUST apply an external freshness or rollback policy for the expected store and record the accepted digest. A signed version string or creation date alone is insufficient. An intentional rollback MUST be authorized through the deployment's administrative process and logged with the selected digest. A missing signature, unsupported profile, or failed verification MUST NOT cause a downgrade to unsigned acceptance.
+
+## Validation cases for implementers
+
+The following are test requirements, not a claim that a conformance suite or interoperable implementations exist. Begin with a structurally valid store, an authorized provenance signer, all locally required approvals, and a configured expected store and scope. Unless stated otherwise, change only the indicated input.
+
+| Case | Expected result |
+| :--- | :--- |
+| Unmodified package with current authorized signatures | Accept after base-format and engine validation. |
+| Repack ZIP with different compression and entry order | Same package digest; accept. |
+| Reorder inventory JSON properties without changing values | Same package digest; accept. |
+| Change one policy byte or metadata governance claim | Reject artifact digest mismatch. |
+| Change artifact bytes and update the inventory hash, keeping old signatures | Reject signed package-digest mismatch. |
+| Omit an inventoried file or add an unlisted regular file | Reject inventory mismatch. |
+| Use `../outside`, `/absolute`, `C:/outside`, or a backslash path | Reject before extraction. |
+| Repeat a ZIP path, duplicate a JSON member, or introduce a file/directory collision | Reject before ambiguous data is consumed. |
+| Add a link entry or mutate the directory after verification | Reject; never evaluate unverified bytes. |
+| Supply an unsupported critical artifact with otherwise valid signatures | Reject unsupported artifact. |
+| Change the profile identifier, or add an unknown inventory member | Reject unsupported profile or structure. |
+| Alter a signature under a trusted, permitted key | Reject cryptographic verification failure. |
+| Sign only with an unknown or revoked key | Reject unmet provenance or approval policy. |
+| Supply provenance but remove a required approval | Reject unmet approval policy. |
+| Repeat one approval to meet a distinct-approver threshold | Reject unmet threshold. |
+| Delete both integrity files where local policy requires integrity | Reject attempted unsigned downgrade. |
+| Replay an older valid package disallowed by local rollback policy | Reject activation despite valid signatures. |
+| Change metadata to a different store with weaker trust settings | Reject expected-store mismatch. |
+
+## Questions for working-group review
+
+Before finalizing this profile, the working group needs to agree on the reserved filenames and version identifier, the signature envelope and mandatory algorithm, and the relationship between critical artifact descriptors and future layout extensions. Byte-level positive and negative fixtures and results from independent implementations are still needed. The profile does not claim that the current draft's fixed entity representation is neutral across all policy languages.
 
 # Relationship to AuthZEN
 
-The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication between PEPs and PDPs. This specification standardizes how policy artifacts are packaged and distributed 
+The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication between PEPs and PDPs. This specification standardizes how policy artifacts are packaged and distributed
 so that:
 
 * PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format.
@@ -650,6 +755,8 @@ Content-Type: application/zip
 Policy stores contain authorization rules and may include sensitive configuration. Implementations MUST protect policy stores at rest and in transit using appropriate access controls for the deployment environment.
 
 Deployments SHOULD use signed releases or secure artifact repositories where integrity and provenance are required.
+
+The Package Integrity Profile ({{package-integrity}}) defines content verification and signer authorization for deployments that require it. Safe Package Paths ({{safe-package-paths}}) applies even when that profile is not used. HTTPS and artifact hashes alone do not establish that a producer is authorized to change the active policy store.
 
 Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate `configuration_endpoint` URIs and token metadata before trusting tokens in production.
 

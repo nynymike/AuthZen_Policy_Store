@@ -13,7 +13,7 @@
        The Policy Store format defines a canonical, PDP-neutral directory structure for organizing authorization policies and their associated metadata. It provides a common structure for policies, schemas, default entities, trusted token issuers, custom token issuers, and other artifacts required for policy evaluation. Using a well-known structure reduces the need for PDP-specific configuration. It also improves the discoverability and portability of these artifacts across ecosystem tools like policy authoring tools, management, and deployment tools. 
        This specification also defines a compressed archive format (.cjar, Constraint JAR) for packaging a policy store for distribution, versioning, and deployment. 
     " name="description">
-<meta content="xml2rfc 3.34.0" name="generator">
+<meta content="xml2rfc 3.34.1" name="generator">
 <meta content="Authorization" name="keyword">
 <meta content="API" name="keyword">
 <meta content="Policy Store" name="keyword">
@@ -22,19 +22,19 @@
 <meta content="CJAR" name="keyword">
 <meta content="draft-schwartz-authzen-policy-store" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.34.0
-    Python 3.13.14
-    ConfigArgParse 1.7.5
+  xml2rfc 3.34.1
+    Python 3.12.10
+    ConfigArgParse 1.7.7
     google-i18n-address 3.1.1
     intervaltree 3.2.1
     Jinja2 3.1.6
-    lxml 6.1.2
+    lxml 6.1.3
     natsort 8.4.0
-    platformdirs 4.11.4
+    platformdirs 4.11.12
     pycountry 26.2.16
     PyYAML 6.0.3
     requests 2.34.2
-    wcwidth 0.8.2
+    wcwidth 0.9.1
 -->
 <link href="draft-schwartz-authzen-policy-store.xml" rel="alternate" type="application/rfc+xml">
 <link href="#copyright" rel="license">
@@ -359,6 +359,10 @@ table p {
   /* XXX to avoid bottom margin on table row signifiers. If paragraphs should
      be allowed within tables more generally, it would be far better to select on a class. */
   margin: 0;
+}
+sub,
+sup {
+ white-space: nowrap;
 }
 
 /* pilcrow */
@@ -1067,6 +1071,9 @@ aside > p {
   figcaption, table caption {
     page-break-before: avoid;
   }
+  table {
+    page-break-inside: avoid;
+  }
 }
 /* Font size adjustments for print */
 @media print {
@@ -1240,7 +1247,7 @@ li > p:last-of-type:only-child {
 <dd class="workgroup">OpenID AuthZEN</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2026-09-18" class="published">18 September 2026</time>
+<time datetime="2026-09-23" class="published">23 September 2026</time>
     </dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
@@ -1412,97 +1419,120 @@ li > p:last-of-type:only-child {
             <p id="section-toc.1-1.11.1"><a href="#section-11" class="auto internal xref">11</a>. <a href="#name-policy-store-loading" class="internal xref">Policy Store Loading</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
-            <p id="section-toc.1-1.12.1"><a href="#section-12" class="auto internal xref">12</a>. <a href="#name-relationship-to-authzen" class="internal xref">Relationship to AuthZEN</a></p>
+            <p id="section-toc.1-1.12.1"><a href="#section-12" class="auto internal xref">12</a>. <a href="#name-safe-package-paths" class="internal xref">Safe Package Paths</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13">
-            <p id="section-toc.1-1.13.1"><a href="#section-13" class="auto internal xref">13</a>. <a href="#name-update-to-policy-decision-p" class="internal xref">Update to Policy Decision Point Metadata</a></p>
+            <p id="section-toc.1-1.13.1"><a href="#section-13" class="auto internal xref">13</a>. <a href="#name-package-integrity-profile" class="internal xref">Package Integrity Profile</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.1">
+                <p id="section-toc.1-1.13.2.1.1"><a href="#section-13.1" class="auto internal xref">13.1</a>.  <a href="#name-inventory-and-content-ident" class="internal xref">Inventory and content identity</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.2">
+                <p id="section-toc.1-1.13.2.2.1"><a href="#section-13.2" class="auto internal xref">13.2</a>.  <a href="#name-provenance-and-approvals" class="internal xref">Provenance and approvals</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.3">
+                <p id="section-toc.1-1.13.2.3.1"><a href="#section-13.3" class="auto internal xref">13.3</a>.  <a href="#name-loading-activation-and-roll" class="internal xref">Loading, activation, and rollback</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.4">
+                <p id="section-toc.1-1.13.2.4.1"><a href="#section-13.4" class="auto internal xref">13.4</a>.  <a href="#name-validation-cases-for-implem" class="internal xref">Validation cases for implementers</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.5">
+                <p id="section-toc.1-1.13.2.5.1"><a href="#section-13.5" class="auto internal xref">13.5</a>.  <a href="#name-questions-for-working-group" class="internal xref">Questions for working-group review</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14">
-            <p id="section-toc.1-1.14.1"><a href="#section-14" class="auto internal xref">14</a>. <a href="#name-transport" class="internal xref">Transport</a></p>
-<ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.1">
-                <p id="section-toc.1-1.14.2.1.1"><a href="#section-14.1" class="auto internal xref">14.1</a>.  <a href="#name-https-json-binding" class="internal xref">HTTPS JSON Binding</a></p>
-<ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.1.2.1">
-                    <p id="section-toc.1-1.14.2.1.2.1.1"><a href="#section-14.1.1" class="auto internal xref">14.1.1</a>.  <a href="#name-error-responses" class="internal xref">Error Responses</a></p>
+            <p id="section-toc.1-1.14.1"><a href="#section-14" class="auto internal xref">14</a>. <a href="#name-relationship-to-authzen" class="internal xref">Relationship to AuthZEN</a></p>
 </li>
-                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.1.2.2">
-                    <p id="section-toc.1-1.14.2.1.2.2.1"><a href="#section-14.1.2" class="auto internal xref">14.1.2</a>.  <a href="#name-request-identification" class="internal xref">Request Identification</a></p>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15">
+            <p id="section-toc.1-1.15.1"><a href="#section-15" class="auto internal xref">15</a>. <a href="#name-update-to-policy-decision-p" class="internal xref">Update to Policy Decision Point Metadata</a></p>
 </li>
-                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.1.2.3">
-                    <p id="section-toc.1-1.14.2.1.2.3.1"><a href="#section-14.1.3" class="auto internal xref">14.1.3</a>.  <a href="#name-example-non-normative-4" class="internal xref">Example (non-normative)</a></p>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16">
+            <p id="section-toc.1-1.16.1"><a href="#section-16" class="auto internal xref">16</a>. <a href="#name-transport" class="internal xref">Transport</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16.2.1">
+                <p id="section-toc.1-1.16.2.1.1"><a href="#section-16.1" class="auto internal xref">16.1</a>.  <a href="#name-https-json-binding" class="internal xref">HTTPS JSON Binding</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16.2.1.2.1">
+                    <p id="section-toc.1-1.16.2.1.2.1.1"><a href="#section-16.1.1" class="auto internal xref">16.1.1</a>.  <a href="#name-error-responses" class="internal xref">Error Responses</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16.2.1.2.2">
+                    <p id="section-toc.1-1.16.2.1.2.2.1"><a href="#section-16.1.2" class="auto internal xref">16.1.2</a>.  <a href="#name-request-identification" class="internal xref">Request Identification</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16.2.1.2.3">
+                    <p id="section-toc.1-1.16.2.1.2.3.1"><a href="#section-16.1.3" class="auto internal xref">16.1.3</a>.  <a href="#name-example-non-normative-4" class="internal xref">Example (non-normative)</a></p>
 </li>
                 </ul>
 </li>
             </ul>
 </li>
-          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15">
-            <p id="section-toc.1-1.15.1"><a href="#section-15" class="auto internal xref">15</a>. <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
-<ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.1">
-                <p id="section-toc.1-1.15.2.1.1"><a href="#section-15.1" class="auto internal xref">15.1</a>.  <a href="#name-policy-store-2" class="internal xref">Policy store</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.2">
-                <p id="section-toc.1-1.15.2.2.1"><a href="#section-15.2" class="auto internal xref">15.2</a>.  <a href="#name-custom-issuer" class="internal xref">Custom issuer</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.3">
-                <p id="section-toc.1-1.15.2.3.1"><a href="#section-15.3" class="auto internal xref">15.3</a>.  <a href="#name-policy-store-api-2" class="internal xref">Policy store API</a></p>
-</li>
-            </ul>
-</li>
-          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16">
-            <p id="section-toc.1-1.16.1"><a href="#section-16" class="auto internal xref">16</a>. <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
-</li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.17">
-            <p id="section-toc.1-1.17.1"><a href="#section-17" class="auto internal xref">17</a>. <a href="#name-references" class="internal xref">References</a></p>
+            <p id="section-toc.1-1.17.1"><a href="#section-17" class="auto internal xref">17</a>. <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.17.2.1">
-                <p id="section-toc.1-1.17.2.1.1"><a href="#section-17.1" class="auto internal xref">17.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+                <p id="section-toc.1-1.17.2.1.1"><a href="#section-17.1" class="auto internal xref">17.1</a>.  <a href="#name-policy-store-2" class="internal xref">Policy store</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.17.2.2">
-                <p id="section-toc.1-1.17.2.2.1"><a href="#section-17.2" class="auto internal xref">17.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+                <p id="section-toc.1-1.17.2.2.1"><a href="#section-17.2" class="auto internal xref">17.2</a>.  <a href="#name-custom-issuer" class="internal xref">Custom issuer</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.17.2.3">
+                <p id="section-toc.1-1.17.2.3.1"><a href="#section-17.3" class="auto internal xref">17.3</a>.  <a href="#name-policy-store-api-2" class="internal xref">Policy store API</a></p>
 </li>
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.18">
-            <p id="section-toc.1-1.18.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-json-schemas-informative" class="internal xref">JSON Schemas (Informative)</a></p>
-<ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.18.2.1">
-                <p id="section-toc.1-1.18.2.1.1"><a href="#appendix-A.1" class="auto internal xref">A.1</a>.  <a href="#name-metadatajson-schema" class="internal xref">metadata.json Schema</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.18.2.2">
-                <p id="section-toc.1-1.18.2.2.1"><a href="#appendix-A.2" class="auto internal xref">A.2</a>.  <a href="#name-trusted-issuer-schema" class="internal xref">Trusted Issuer Schema</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.18.2.3">
-                <p id="section-toc.1-1.18.2.3.1"><a href="#appendix-A.3" class="auto internal xref">A.3</a>.  <a href="#name-custom-issuer-schema" class="internal xref">Custom Issuer Schema</a></p>
-</li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.18.2.4">
-                <p id="section-toc.1-1.18.2.4.1"><a href="#appendix-A.4" class="auto internal xref">A.4</a>.  <a href="#name-entity-file-schema" class="internal xref">Entity File Schema</a></p>
-</li>
-            </ul>
+            <p id="section-toc.1-1.18.1"><a href="#section-18" class="auto internal xref">18</a>. <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.19">
-            <p id="section-toc.1-1.19.1"><a href="#appendix-B" class="auto internal xref">Appendix B</a>.  <a href="#name-policy-engine-examples-info" class="internal xref">Policy Engine Examples (Informative)</a></p>
+            <p id="section-toc.1-1.19.1"><a href="#section-19" class="auto internal xref">19</a>. <a href="#name-references" class="internal xref">References</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.19.2.1">
-                <p id="section-toc.1-1.19.2.1.1"><a href="#appendix-B.1" class="auto internal xref">B.1</a>.  <a href="#name-cedar-pdp-example" class="internal xref">Cedar PDP Example</a></p>
+                <p id="section-toc.1-1.19.2.1.1"><a href="#section-19.1" class="auto internal xref">19.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.19.2.2">
-                <p id="section-toc.1-1.19.2.2.1"><a href="#appendix-B.2" class="auto internal xref">B.2</a>.  <a href="#name-cel-pdp-example" class="internal xref">CEL PDP Example</a></p>
+                <p id="section-toc.1-1.19.2.2.1"><a href="#section-19.2" class="auto internal xref">19.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
 </li>
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.20">
-            <p id="section-toc.1-1.20.1"><a href="#appendix-C" class="auto internal xref">Appendix C</a>.  <a href="#name-open-issues-informative" class="internal xref">Open Issues (Informative)</a></p>
+            <p id="section-toc.1-1.20.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-json-schemas-informative" class="internal xref">JSON Schemas (Informative)</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.20.2.1">
+                <p id="section-toc.1-1.20.2.1.1"><a href="#appendix-A.1" class="auto internal xref">A.1</a>.  <a href="#name-metadatajson-schema" class="internal xref">metadata.json Schema</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.20.2.2">
+                <p id="section-toc.1-1.20.2.2.1"><a href="#appendix-A.2" class="auto internal xref">A.2</a>.  <a href="#name-trusted-issuer-schema" class="internal xref">Trusted Issuer Schema</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.20.2.3">
+                <p id="section-toc.1-1.20.2.3.1"><a href="#appendix-A.3" class="auto internal xref">A.3</a>.  <a href="#name-custom-issuer-schema" class="internal xref">Custom Issuer Schema</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.20.2.4">
+                <p id="section-toc.1-1.20.2.4.1"><a href="#appendix-A.4" class="auto internal xref">A.4</a>.  <a href="#name-entity-file-schema" class="internal xref">Entity File Schema</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.21">
-            <p id="section-toc.1-1.21.1"><a href="#appendix-D" class="auto internal xref">Appendix D</a>.  <a href="#name-notices" class="internal xref">Notices</a></p>
+            <p id="section-toc.1-1.21.1"><a href="#appendix-B" class="auto internal xref">Appendix B</a>.  <a href="#name-policy-engine-examples-info" class="internal xref">Policy Engine Examples (Informative)</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.21.2.1">
+                <p id="section-toc.1-1.21.2.1.1"><a href="#appendix-B.1" class="auto internal xref">B.1</a>.  <a href="#name-cedar-pdp-example" class="internal xref">Cedar PDP Example</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.21.2.2">
+                <p id="section-toc.1-1.21.2.2.1"><a href="#appendix-B.2" class="auto internal xref">B.2</a>.  <a href="#name-cel-pdp-example" class="internal xref">CEL PDP Example</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.22">
-            <p id="section-toc.1-1.22.1"><a href="#appendix-E" class="auto internal xref"></a><a href="#name-contributors" class="internal xref">Contributors</a></p>
+            <p id="section-toc.1-1.22.1"><a href="#appendix-C" class="auto internal xref">Appendix C</a>.  <a href="#name-open-issues-informative" class="internal xref">Open Issues (Informative)</a></p>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.23">
-            <p id="section-toc.1-1.23.1"><a href="#appendix-F" class="auto internal xref"></a><a href="#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
+            <p id="section-toc.1-1.23.1"><a href="#appendix-D" class="auto internal xref">Appendix D</a>.  <a href="#name-notices" class="internal xref">Notices</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.24">
+            <p id="section-toc.1-1.24.1"><a href="#appendix-E" class="auto internal xref"></a><a href="#name-contributors" class="internal xref">Contributors</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.25">
+            <p id="section-toc.1-1.25.1"><a href="#appendix-F" class="auto internal xref"></a><a href="#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
 </li>
         </ul>
 </nav>
@@ -1641,6 +1671,9 @@ li > p:last-of-type:only-child {
           <li class="normal" id="section-3.2-2.7">
             <p id="section-3.2-2.7.1">Optional custom issuer configuration (<code>custom-issuers/</code>)<a href="#section-3.2-2.7.1" class="pilcrow">¶</a></p>
 </li>
+          <li class="normal" id="section-3.2-2.8">
+            <p id="section-3.2-2.8.1">Optional package integrity inventory and signatures (<code>integrity.json</code> and <code>signatures.json</code>), used together as defined in <a href="#package-integrity" class="auto internal xref">Section 13</a><a href="#section-3.2-2.8.1" class="pilcrow">¶</a></p>
+</li>
         </ul>
 <p id="section-3.2-3">This document does not define the syntax and semantics of policy documents, schema files, or entity types. These are defined by the declared policy language. This specification defines the container layout, metadata, and interchange formats only.<a href="#section-3.2-3" class="pilcrow">¶</a></p>
 <p id="section-3.2-4">Implementations MAY support either the Directory Format or the Archive Format (.cjar), or both. Tools that produce or consume policy stores SHOULD support conversion between formats without loss of content.<a href="#section-3.2-4" class="pilcrow">¶</a></p>
@@ -1715,7 +1748,7 @@ Content-Type: application/zip
 -----XYZ--
 </pre><a href="#section-4.3-4" class="pilcrow">¶</a>
 </div>
-<p id="section-4.3-5">Refer to <a href="#transport" class="auto internal xref">Section 14</a> for more details.<a href="#section-4.3-5" class="pilcrow">¶</a></p>
+<p id="section-4.3-5">Refer to <a href="#transport" class="auto internal xref">Section 16</a> for more details.<a href="#section-4.3-5" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="api-response">
@@ -1741,7 +1774,7 @@ Content-Type: application/zip
 }
 </pre><a href="#section-4.4-5" class="pilcrow">¶</a>
 </div>
-<p id="section-4.4-6">Refer to <a href="#transport" class="auto internal xref">Section 14</a> for more details.<a href="#section-4.4-6" class="pilcrow">¶</a></p>
+<p id="section-4.4-6">Refer to <a href="#transport" class="auto internal xref">Section 16</a> for more details.<a href="#section-4.4-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -1757,6 +1790,8 @@ Content-Type: application/zip
 <pre>
 policy-store-root/
 ├── metadata.json
+├── integrity.json      (optional profile; requires signatures.json)
+├── signatures.json     (optional profile; requires integrity.json)
 ├── policies/
 │   └── (one policy document per file)
 ├── schema/             (optional)
@@ -2367,7 +2402,7 @@ policy-store-root/
 <p id="section-11-1">PDPs and tools that load policy stores SHOULD perform the following steps:<a href="#section-11-1" class="pilcrow">¶</a></p>
 <ol start="1" type="1" class="normal type-1" id="section-11-2">
 <li id="section-11-2.1">
-          <p id="section-11-2.1.1">Detect format (directory or <code>.cjar</code> archive) and normalize to a directory view.<a href="#section-11-2.1.1" class="pilcrow">¶</a></p>
+          <p id="section-11-2.1.1">Detect format (directory or <code>.cjar</code> archive), enforce Safe Package Paths (<a href="#safe-package-paths" class="auto internal xref">Section 12</a>), and normalize to an isolated directory view.<a href="#section-11-2.1.1" class="pilcrow">¶</a></p>
 </li>
         <li id="section-11-2.2">
           <p id="section-11-2.2.1">Verify required files and directories exist.<a href="#section-11-2.2.1" class="pilcrow">¶</a></p>
@@ -2382,58 +2417,297 @@ policy-store-root/
           <p id="section-11-2.5.1">Confirm the implementation supports the declared <code>policy_language</code> and <code>policy_language_version</code>, or reject the store.<a href="#section-11-2.5.1" class="pilcrow">¶</a></p>
 </li>
         <li id="section-11-2.6">
-          <p id="section-11-2.6.1">If present, load <code>schema/</code>; then load policies and optional templates, entities, trusted issuers, and custom issuers according to policy engine rules.<a href="#section-11-2.6.1" class="pilcrow">¶</a></p>
+          <p id="section-11-2.6.1">Apply the deployment's integrity requirement and, when present or required, verify the Package Integrity Profile (<a href="#package-integrity" class="auto internal xref">Section 13</a>). Complete verification before loading artifacts into the policy engine.<a href="#section-11-2.6.1" class="pilcrow">¶</a></p>
 </li>
         <li id="section-11-2.7">
-          <p id="section-11-2.7.1">Verify policy engine-specific requirements if any (such as unique policy identifiers).<a href="#section-11-2.7.1" class="pilcrow">¶</a></p>
+          <p id="section-11-2.7.1">If present, load <code>schema/</code>; then load policies and optional templates, entities, trusted issuers, and custom issuers according to policy engine rules.<a href="#section-11-2.7.1" class="pilcrow">¶</a></p>
 </li>
         <li id="section-11-2.8">
-          <p id="section-11-2.8.1">Verify that no schema entity type is declared by more than one issuer file, whether under <code>trusted-issuers/</code> or <code>custom-issuers/</code> (<a href="#custom-issuers" class="auto internal xref">Section 9</a>).<a href="#section-11-2.8.1" class="pilcrow">¶</a></p>
+          <p id="section-11-2.8.1">Verify policy engine-specific requirements if any (such as unique policy identifiers).<a href="#section-11-2.8.1" class="pilcrow">¶</a></p>
 </li>
         <li id="section-11-2.9">
-          <p id="section-11-2.9.1">If <code>custom-issuers/</code> is present, determine whether the implementation can process each declared entity type (<a href="#custom-issuers" class="auto internal xref">Section 9</a>).<a href="#section-11-2.9.1" class="pilcrow">¶</a></p>
+          <p id="section-11-2.9.1">Verify that no schema entity type is declared by more than one issuer file, whether under <code>trusted-issuers/</code> or <code>custom-issuers/</code> (<a href="#custom-issuers" class="auto internal xref">Section 9</a>).<a href="#section-11-2.9.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-11-2.10">
+          <p id="section-11-2.10.1">If <code>custom-issuers/</code> is present, determine whether the implementation can process each declared entity type (<a href="#custom-issuers" class="auto internal xref">Section 9</a>).<a href="#section-11-2.10.1" class="pilcrow">¶</a></p>
 </li>
       </ol>
-<p id="section-11-3">Failure at any REQUIRED validation step SHOULD result in rejecting the policy store for evaluation.<a href="#section-11-3" class="pilcrow">¶</a></p>
+<p id="section-11-3">Failure at any REQUIRED validation step MUST result in rejecting the policy store for evaluation. Rejection MUST leave the previously active store unchanged.<a href="#section-11-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="safe-package-paths">
+<section id="section-12">
+      <h2 id="name-safe-package-paths">
+<a href="#section-12" class="section-number selfRef">12. </a><a href="#name-safe-package-paths" class="section-name selfRef">Safe Package Paths</a>
+      </h2>
+<p id="section-12-1">These requirements apply to both signed and unsigned stores. Loaders MUST validate entry names before extraction or opening files. A path MUST be relative to the store root, use <code>/</code> as its separator, and contain no empty, <code>.</code> or <code>..</code> component. Absolute paths, drive-qualified paths, backslashes, NUL, and control characters MUST be rejected. Loaders MUST NOT percent-decode paths or otherwise repair invalid paths into valid ones.<a href="#section-12-1" class="pilcrow">¶</a></p>
+<p id="section-12-2">Loaders MUST reject duplicate file paths, file/directory conflicts, and paths that alias one another under the target filesystem's rules, including case folding and Unicode normalization. Names interpreted as device names or alternate data streams, and names that cannot be represented without filesystem rewriting, MUST be rejected. An explicit ZIP directory entry MAY end in one <code>/</code>; remove only that trailing separator when validating its directory name. Conflicting ZIP local-header and central-directory names MUST be rejected.<a href="#section-12-2" class="pilcrow">¶</a></p>
+<p id="section-12-3">Only regular files and directories are permitted. Symbolic links, hard links, device entries, and filesystem reparse points MUST be rejected. Loaders MUST prevent writes or reads outside an isolated store root, including through pre-existing links. They MUST enforce configured limits on entry count, total uncompressed bytes, individual file size, and decompression work before accepting a store.<a href="#section-12-3" class="pilcrow">¶</a></p>
+<p id="section-12-4">Verification and subsequent loading MUST use the same immutable snapshot of file bytes. Verifying a directory and later reopening mutable paths is insufficient. Archive metadata, executable bits, timestamps, and entry order MUST NOT affect policy evaluation.<a href="#section-12-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="package-integrity">
+<section id="section-13">
+      <h2 id="name-package-integrity-profile">
+<a href="#section-13" class="section-number selfRef">13. </a><a href="#name-package-integrity-profile" class="section-name selfRef">Package Integrity Profile</a>
+      </h2>
+<p id="section-13-1">Editor's note: This section proposes an optional profile for working-group review. The profile identifier and signature choices below are provisional. They do not indicate adoption or implementation conformance.<a href="#section-13-1" class="pilcrow">¶</a></p>
+<p id="section-13-2">The profile adds two reserved root files: <code>integrity.json</code> and <code>signatures.json</code>. A deployment MAY accept stores without this profile, but MUST configure that decision outside the incoming package. If either reserved file is present, both MUST be present and the complete profile MUST be verified or the store rejected. A loader that does not support the profile MUST reject these stores. An integrity-required deployment MUST reject a store with either file missing; it MUST NOT retry it as an unsigned store.<a href="#section-13-2" class="pilcrow">¶</a></p>
+<div id="inventory-and-content-identity">
+<section id="section-13.1">
+        <h3 id="name-inventory-and-content-ident">
+<a href="#section-13.1" class="section-number selfRef">13.1. </a><a href="#name-inventory-and-content-ident" class="section-name selfRef">Inventory and content identity</a>
+        </h3>
+<p id="section-13.1-1"><code>integrity.json</code> MUST be a UTF-8 JSON object satisfying the input constraints of <span>[<a href="#RFC8785" class="cite xref">RFC8785</a>]</span>. Duplicate JSON property names MUST be rejected before they can be discarded by a parser. Its only members are:<a href="#section-13.1-1" class="pilcrow">¶</a></p>
+<table class="center" id="table-4">
+          <caption><a href="#table-4" class="selfRef">Table 4</a></caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Member</th>
+              <th class="text-left" rowspan="1" colspan="1">Requirement</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>profile</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED string, exactly <code>authzen-policy-store-integrity-1</code>.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>files</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED object mapping relative file paths to artifact descriptors.</td>
+            </tr>
+          </tbody>
+        </table>
+<p id="section-13.1-3">Each descriptor MUST contain exactly these members:<a href="#section-13.1-3" class="pilcrow">¶</a></p>
+<table class="center" id="table-5">
+          <caption><a href="#table-5" class="selfRef">Table 5</a></caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Member</th>
+              <th class="text-left" rowspan="1" colspan="1">Requirement</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>sha256</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED string of 64 lowercase hexadecimal characters, the SHA-256 digest of the exact uncompressed file bytes.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>media_type</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED non-empty media type string describing the artifact representation.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>critical</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED boolean indicating that the loader must understand and process the artifact to accept the store.</td>
+            </tr>
+          </tbody>
+        </table>
+<p id="section-13.1-5"><code>files</code> MUST inventory every regular file, including <code>metadata.json</code>, except the two reserved integrity files. It MUST NOT inventory directories or either reserved file. Missing files, unlisted files, duplicate paths, and digest mismatches MUST cause rejection. The inventory is subject to the same path rules as the package. It does not authorize additional directories or override the base format's content requirements.<a href="#section-13.1-5" class="pilcrow">¶</a></p>
+<p id="section-13.1-6"><code>metadata.json</code> MUST have media type <code>application/json</code> and <code>critical: true</code>. All policy, schema, template, entity, and issuer artifacts used for evaluation MUST be critical. A loader MUST reject a critical artifact whose representation or role it cannot process. Non-critical artifacts MAY be ignored semantically, but their bytes MUST still be verified. <code>application/octet-stream</code> describes opaque bytes; it does not establish that a loader understands them. Engine-specific artifacts require a separately agreed extension to the layout and semantics.<a href="#section-13.1-6" class="pilcrow">¶</a></p>
+<p id="section-13.1-7">The metadata file binds the store identifier, policy language and version, and governance claims into the inventory. JSON artifact bytes MUST NOT be reserialized, whitespace-normalized, or line-ending-normalized before hashing. The package digest is <code>sha256:</code> followed by the lowercase hexadecimal SHA-256 digest of the UTF-8 JCS serialization of the entire <code>integrity.json</code> object (<span>[<a href="#RFC8785" class="cite xref">RFC8785</a>]</span>). Unknown profile identifiers or inventory members MUST be rejected. This version has no implicit extension or fallback mechanism.<a href="#section-13.1-7" class="pilcrow">¶</a></p>
+<p id="section-13.1-8">The digest identifies the inventoried content and descriptors. ZIP compression, ZIP entry order, and JSON object-member ordering in <code>integrity.json</code> do not change it. Changing an artifact's bytes, path, media type, or criticality does. Signatures are excluded to avoid a circular digest and permit approvals to be added without changing content identity. A digest alone does not authenticate its producer.<a href="#section-13.1-8" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="provenance-and-approvals">
+<section id="section-13.2">
+        <h3 id="name-provenance-and-approvals">
+<a href="#section-13.2" class="section-number selfRef">13.2. </a><a href="#name-provenance-and-approvals" class="section-name selfRef">Provenance and approvals</a>
+        </h3>
+<p id="section-13.2-1"><code>signatures.json</code> MUST be a UTF-8 JSON array of JWS Compact Serialization strings (<span>[<a href="#RFC7515" class="cite xref">RFC7515</a>]</span>), with at least one element. Duplicate JSON members MUST be rejected in decoded protected headers and payloads. Each JWS payload MUST be a UTF-8 JSON object containing exactly these three string members:<a href="#section-13.2-1" class="pilcrow">¶</a></p>
+<table class="center" id="table-6">
+          <caption><a href="#table-6" class="selfRef">Table 6</a></caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Member</th>
+              <th class="text-left" rowspan="1" colspan="1">Requirement</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>profile</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Exactly <code>authzen-policy-store-integrity-1</code>.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>package_digest</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">The package digest computed above.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>purpose</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Either <code>provenance</code> or <code>approval</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+<p id="section-13.2-3">Each protected header MUST contain exactly <code>alg</code> and <code>kid</code>. The latter is a non-empty identifier resolved against deployment-configured verification keys. This profile uses standard base64url-encoded JWS payloads; detached or unencoded payloads are not supported. Implementations MUST support ES256 as defined in <span>[<a href="#RFC7518" class="cite xref">RFC7518</a>]</span>. Other digital-signature algorithms MAY be permitted by deployment policy. The <code>none</code> algorithm and shared-secret MAC algorithms MUST NOT be accepted.<a href="#section-13.2-3" class="pilcrow">¶</a></p>
+<p id="section-13.2-4">Each array element MUST be structurally valid and bind the computed package digest and profile. Unknown keys or locally disallowed algorithms do not count toward acceptance. A signature using a configured key and permitted algorithm MUST verify or the package MUST be rejected. Acceptance MUST require at least one verified provenance signature from an authorized producer and every approval required by local policy. Distinct-approver thresholds MUST count independently authorized principals, not signatures or keys; multiple keys belonging to one principal count once.<a href="#section-13.2-4" class="pilcrow">¶</a></p>
+<p id="section-13.2-5">The deployment MUST define which keys may assert provenance or approval for the expected store identifier and governance scope. It MUST select the expected store and scope from the authenticated administrative request or local configuration, then compare them with the verified metadata. It MUST NOT let package-supplied identifiers select a less restrictive trust policy. An approval signature does not by itself authorize upload or activation.<a href="#section-13.2-5" class="pilcrow">¶</a></p>
+<p id="section-13.2-6">The <code>governance.owner</code> and <code>governance.author</code> URNs remain claims. A verified signature establishes that an authorized key endorsed the bound content; linking that key to an organization or an accountable role requires the deployment's independent identity and authorization policy. The package's <code>trusted-issuers/</code> files govern evaluation tokens and MUST NOT establish trust in package signers.<a href="#section-13.2-6" class="pilcrow">¶</a></p>
+<p id="section-13.2-7">Trust anchors, permitted algorithms, approval thresholds, key validity periods, and revocation status MUST be managed outside the incoming package. Key rotation MAY allow a configured overlap, but a package cannot introduce its own replacement trusted key. A revoked key MUST NOT count toward new acceptance. Previously activated content requires a deployment decision when its signer is revoked; this format does not provide a revocation service. If required current trust information is unavailable, the loader MUST reject new activation.<a href="#section-13.2-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="loading-activation-and-rollback">
+<section id="section-13.3">
+        <h3 id="name-loading-activation-and-roll">
+<a href="#section-13.3" class="section-number selfRef">13.3. </a><a href="#name-loading-activation-and-roll" class="section-name selfRef">Loading, activation, and rollback</a>
+        </h3>
+<p id="section-13.3-1">After safe path and structural validation, a loader MUST verify the complete inventory, calculate the package digest, and enforce signature and trust policy before any policy-engine evaluation or issuer processing. It MUST then apply the base format's metadata, language, and engine validation rules to the same snapshot. Successful signature verification does not establish policy correctness or safe issuer configuration.<a href="#section-13.3-1" class="pilcrow">¶</a></p>
+<p id="section-13.3-2">Publishing, fetching, uploading, approving, and activating are separate permissions. The existing upload endpoint remains subject to administrative authentication and authorization; accepting a package MUST NOT grant its producer permission to activate it. This profile adds no activation, rollback, or revocation API and no ability for a resource to push policy into a PDP.<a href="#section-13.3-2" class="pilcrow">¶</a></p>
+<p id="section-13.3-3">A valid old signature remains cryptographically valid. Deployments MUST apply an external freshness or rollback policy for the expected store and record the accepted digest. A signed version string or creation date alone is insufficient. An intentional rollback MUST be authorized through the deployment's administrative process and logged with the selected digest. A missing signature, unsupported profile, or failed verification MUST NOT cause a downgrade to unsigned acceptance.<a href="#section-13.3-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="validation-cases-for-implementers">
+<section id="section-13.4">
+        <h3 id="name-validation-cases-for-implem">
+<a href="#section-13.4" class="section-number selfRef">13.4. </a><a href="#name-validation-cases-for-implem" class="section-name selfRef">Validation cases for implementers</a>
+        </h3>
+<p id="section-13.4-1">The following are test requirements, not a claim that a conformance suite or interoperable implementations exist. Begin with a structurally valid store, an authorized provenance signer, all locally required approvals, and a configured expected store and scope. Unless stated otherwise, change only the indicated input.<a href="#section-13.4-1" class="pilcrow">¶</a></p>
+<table class="center" id="table-7">
+          <caption><a href="#table-7" class="selfRef">Table 7</a></caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Case</th>
+              <th class="text-left" rowspan="1" colspan="1">Expected result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Unmodified package with current authorized signatures</td>
+              <td class="text-left" rowspan="1" colspan="1">Accept after base-format and engine validation.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Repack ZIP with different compression and entry order</td>
+              <td class="text-left" rowspan="1" colspan="1">Same package digest; accept.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Reorder inventory JSON properties without changing values</td>
+              <td class="text-left" rowspan="1" colspan="1">Same package digest; accept.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Change one policy byte or metadata governance claim</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject artifact digest mismatch.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Change artifact bytes and update the inventory hash, keeping old signatures</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject signed package-digest mismatch.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Omit an inventoried file or add an unlisted regular file</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject inventory mismatch.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Use <code>../outside</code>, <code>/absolute</code>, <code>C:/outside</code>, or a backslash path</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject before extraction.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Repeat a ZIP path, duplicate a JSON member, or introduce a file/directory collision</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject before ambiguous data is consumed.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Add a link entry or mutate the directory after verification</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject; never evaluate unverified bytes.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Supply an unsupported critical artifact with otherwise valid signatures</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject unsupported artifact.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Change the profile identifier, or add an unknown inventory member</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject unsupported profile or structure.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Alter a signature under a trusted, permitted key</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject cryptographic verification failure.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Sign only with an unknown or revoked key</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject unmet provenance or approval policy.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Supply provenance but remove a required approval</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject unmet approval policy.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Repeat one approval to meet a distinct-approver threshold</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject unmet threshold.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Delete both integrity files where local policy requires integrity</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject attempted unsigned downgrade.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Replay an older valid package disallowed by local rollback policy</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject activation despite valid signatures.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Change metadata to a different store with weaker trust settings</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject expected-store mismatch.</td>
+            </tr>
+          </tbody>
+        </table>
+</section>
+</div>
+<div id="questions-for-working-group-review">
+<section id="section-13.5">
+        <h3 id="name-questions-for-working-group">
+<a href="#section-13.5" class="section-number selfRef">13.5. </a><a href="#name-questions-for-working-group" class="section-name selfRef">Questions for working-group review</a>
+        </h3>
+<p id="section-13.5-1">Before finalizing this profile, the working group needs to agree on the reserved filenames and version identifier, the signature envelope and mandatory algorithm, and the relationship between critical artifact descriptors and future layout extensions. Byte-level positive and negative fixtures and results from independent implementations are still needed. The profile does not claim that the current draft's fixed entity representation is neutral across all policy languages.<a href="#section-13.5-1" class="pilcrow">¶</a></p>
+</section>
+</div>
 </section>
 </div>
 <div id="relationship-to-authzen">
-<section id="section-12">
+<section id="section-14">
       <h2 id="name-relationship-to-authzen">
-<a href="#section-12" class="section-number selfRef">12. </a><a href="#name-relationship-to-authzen" class="section-name selfRef">Relationship to AuthZEN</a>
+<a href="#section-14" class="section-number selfRef">14. </a><a href="#name-relationship-to-authzen" class="section-name selfRef">Relationship to AuthZEN</a>
       </h2>
-<p id="section-12-1">The AuthZEN Authorization API (<span>[<a href="#AUTHZEN-API" class="cite xref">AUTHZEN-API</a>]</span>) standardizes communication between PEPs and PDPs. This specification standardizes how policy artifacts are packaged and distributed 
-so that:<a href="#section-12-1" class="pilcrow">¶</a></p>
+<p id="section-14-1">The AuthZEN Authorization API (<span>[<a href="#AUTHZEN-API" class="cite xref">AUTHZEN-API</a>]</span>) standardizes communication between PEPs and PDPs. This specification standardizes how policy artifacts are packaged and distributed
+so that:<a href="#section-14-1" class="pilcrow">¶</a></p>
 <ul class="normal">
-<li class="normal" id="section-12-2.1">
-          <p id="section-12-2.1.1">PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format.<a href="#section-12-2.1.1" class="pilcrow">¶</a></p>
+<li class="normal" id="section-14-2.1">
+          <p id="section-14-2.1.1">PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format.<a href="#section-14-2.1.1" class="pilcrow">¶</a></p>
 </li>
-        <li class="normal" id="section-12-2.2">
-          <p id="section-12-2.2.1">CI/CD pipelines MAY version, review, and promote policy stores as atomic units.<a href="#section-12-2.2.1" class="pilcrow">¶</a></p>
+        <li class="normal" id="section-14-2.2">
+          <p id="section-14-2.2.1">CI/CD pipelines MAY version, review, and promote policy stores as atomic units.<a href="#section-14-2.2.1" class="pilcrow">¶</a></p>
 </li>
-        <li class="normal" id="section-12-2.3">
-          <p id="section-12-2.3.1">Audit systems MAY bind decision logs to a specific <code>policy_store.id</code>.<a href="#section-12-2.3.1" class="pilcrow">¶</a></p>
+        <li class="normal" id="section-14-2.3">
+          <p id="section-14-2.3.1">Audit systems MAY bind decision logs to a specific <code>policy_store.id</code>.<a href="#section-14-2.3.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 </section>
 </div>
 <div id="update-pdp-metadata">
-<section id="section-13">
+<section id="section-15">
       <h2 id="name-update-to-policy-decision-p">
-<a href="#section-13" class="section-number selfRef">13. </a><a href="#name-update-to-policy-decision-p" class="section-name selfRef">Update to Policy Decision Point Metadata</a>
+<a href="#section-15" class="section-number selfRef">15. </a><a href="#name-update-to-policy-decision-p" class="section-name selfRef">Update to Policy Decision Point Metadata</a>
       </h2>
-<p id="section-13-1">This specification adds a new Policy Decision Point Metadata endpoint parameter to the <a href="https://openid.net/specs/authorization-api-1_0.html#name-endpoint-parameters">existing AuthZEN parameter list</a>. The new parameter should be added as mentioned below:<a href="#section-13-1" class="pilcrow">¶</a></p>
-<p id="section-13-2"><code>policy_store_endpoint</code>: OPTIONAL. HTTPS URL of the Policy Decision Point's policy store endpoint.<a href="#section-13-2" class="pilcrow">¶</a></p>
-<p id="section-13-3">The parameter should be registered in the IANA registry as established under <span><a href="#iana-considerations" class="internal xref">IANA Considerations</a> (<a href="#iana-considerations" class="auto internal xref">Section 16</a>)</span>. The parameter should be obtainable using the AuthZEN <code>.well-known/authzen-configuration</code> in the same way as described in the <a href="https://openid.net/specs/authorization-api-1_0.html#name-obtaining-policy-decision-p">relevant section</a> of the AuthZEN Authorization API Specification.<a href="#section-13-3" class="pilcrow">¶</a></p>
-<p id="section-13-4">A request such as the following to the AuthZEN <code>.well-known</code> endpoint should include the <code>policy_store_endpoint</code> parameter if the Policy Decision Point supports this endpoint.<a href="#section-13-4" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-13-5">
+<p id="section-15-1">This specification adds a new Policy Decision Point Metadata endpoint parameter to the <a href="https://openid.net/specs/authorization-api-1_0.html#name-endpoint-parameters">existing AuthZEN parameter list</a>. The new parameter should be added as mentioned below:<a href="#section-15-1" class="pilcrow">¶</a></p>
+<p id="section-15-2"><code>policy_store_endpoint</code>: OPTIONAL. HTTPS URL of the Policy Decision Point's policy store endpoint.<a href="#section-15-2" class="pilcrow">¶</a></p>
+<p id="section-15-3">The parameter should be registered in the IANA registry as established under <span><a href="#iana-considerations" class="internal xref">IANA Considerations</a> (<a href="#iana-considerations" class="auto internal xref">Section 18</a>)</span>. The parameter should be obtainable using the AuthZEN <code>.well-known/authzen-configuration</code> in the same way as described in the <a href="https://openid.net/specs/authorization-api-1_0.html#name-obtaining-policy-decision-p">relevant section</a> of the AuthZEN Authorization API Specification.<a href="#section-15-3" class="pilcrow">¶</a></p>
+<p id="section-15-4">A request such as the following to the AuthZEN <code>.well-known</code> endpoint should include the <code>policy_store_endpoint</code> parameter if the Policy Decision Point supports this endpoint.<a href="#section-15-4" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-15-5">
 <pre>
 GET /.well-known/authzen-configuration HTTP/1.1
 Host: pdp.example.com
-</pre><a href="#section-13-5" class="pilcrow">¶</a>
+</pre><a href="#section-15-5" class="pilcrow">¶</a>
 </div>
-<p id="section-13-6">A non-normative example of the successful response:<a href="#section-13-6" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-13-7">
+<p id="section-15-6">A non-normative example of the successful response:<a href="#section-15-6" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-15-7">
 <pre>
 HTTP/1.1 200 OK
 Content-Type: application/json
@@ -2445,25 +2719,25 @@ Content-Type: application/json
   "search_resource_endpoint": "https://pdp.example.com/access/v1/search/resource",
   "policy_store_endpoint": "https://pdp.example.com/access/v1/policy-store"
 }
-</pre><a href="#section-13-7" class="pilcrow">¶</a>
+</pre><a href="#section-15-7" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
 <div id="transport">
-<section id="section-14">
+<section id="section-16">
       <h2 id="name-transport">
-<a href="#section-14" class="section-number selfRef">14. </a><a href="#name-transport" class="section-name selfRef">Transport</a>
+<a href="#section-16" class="section-number selfRef">16. </a><a href="#name-transport" class="section-name selfRef">Transport</a>
       </h2>
-<p id="section-14-1">This specification defines an HTTPS binding using JSON serialization which MUST be implemented by a compliant PDP.<a href="#section-14-1" class="pilcrow">¶</a></p>
+<p id="section-16-1">This specification defines an HTTPS binding using JSON serialization which MUST be implemented by a compliant PDP.<a href="#section-16-1" class="pilcrow">¶</a></p>
 <div id="https-json-binding">
-<section id="section-14.1">
+<section id="section-16.1">
         <h3 id="name-https-json-binding">
-<a href="#section-14.1" class="section-number selfRef">14.1. </a><a href="#name-https-json-binding" class="section-name selfRef">HTTPS JSON Binding</a>
+<a href="#section-16.1" class="section-number selfRef">16.1. </a><a href="#name-https-json-binding" class="section-name selfRef">HTTPS JSON Binding</a>
         </h3>
-<p id="section-14.1-1">All API requests to the policy store endpoint MUST be made via an HTTPS POST request.<a href="#section-14.1-1" class="pilcrow">¶</a></p>
-<p id="section-14.1-2">Requests MUST include a <code>Content-Type</code> header with the value <code>multipart/form-data</code> [<span>[<a href="#RFC7578" class="cite xref">RFC7578</a>]</span>]. The request body MUST conform to the request structure defined in (<a href="#api-request" class="auto internal xref">Section 4.3</a>).<a href="#section-14.1-2" class="pilcrow">¶</a></p>
-<table class="center" id="table-4">
-          <caption><a href="#table-4" class="selfRef">Table 4</a></caption>
+<p id="section-16.1-1">All API requests to the policy store endpoint MUST be made via an HTTPS POST request.<a href="#section-16.1-1" class="pilcrow">¶</a></p>
+<p id="section-16.1-2">Requests MUST include a <code>Content-Type</code> header with the value <code>multipart/form-data</code> [<span>[<a href="#RFC7578" class="cite xref">RFC7578</a>]</span>]. The request body MUST conform to the request structure defined in (<a href="#api-request" class="auto internal xref">Section 4.3</a>).<a href="#section-16.1-2" class="pilcrow">¶</a></p>
+<table class="center" id="table-8">
+          <caption><a href="#table-8" class="selfRef">Table 8</a></caption>
 <thead>
             <tr>
               <th class="text-left" rowspan="1" colspan="1">API Endpoint</th>
@@ -2487,16 +2761,16 @@ Content-Type: application/json
             </tr>
           </tbody>
         </table>
-<p id="section-14.1-4">A successful response is an HTTPS response with a status code of 201 Created and a <code>Content-Type</code> of <code>application/json</code>. The response body MUST be a JSON object that conforms to the structure defined in (<a href="#api-response" class="auto internal xref">Section 4.4</a>).<a href="#section-14.1-4" class="pilcrow">¶</a></p>
-<p id="section-14.1-5">The request URL MUST be the value of the <code>policy_store_endpoint</code> parameter (<a href="#update-pdp-metadata" class="auto internal xref">Section 13</a>) if provided in the Policy Decision Point metadata. If the parameter is omitted, the URL SHOULD be formed by appending the default path (as defined in the table above) to the PDP’s base URL. PDP's base URL should be obtained from the value of <code>policy_decision_point</code> parameter of the Policy Decision Point metadata as defined by AuthZEN Authorization API (<span>[<a href="#AUTHZEN-API" class="cite xref">AUTHZEN-API</a>]</span>), if available.<a href="#section-14.1-5" class="pilcrow">¶</a></p>
+<p id="section-16.1-4">A successful response is an HTTPS response with a status code of 201 Created and a <code>Content-Type</code> of <code>application/json</code>. The response body MUST be a JSON object that conforms to the structure defined in (<a href="#api-response" class="auto internal xref">Section 4.4</a>).<a href="#section-16.1-4" class="pilcrow">¶</a></p>
+<p id="section-16.1-5">The request URL MUST be the value of the <code>policy_store_endpoint</code> parameter (<a href="#update-pdp-metadata" class="auto internal xref">Section 15</a>) if provided in the Policy Decision Point metadata. If the parameter is omitted, the URL SHOULD be formed by appending the default path (as defined in the table above) to the PDP’s base URL. PDP's base URL should be obtained from the value of <code>policy_decision_point</code> parameter of the Policy Decision Point metadata as defined by AuthZEN Authorization API (<span>[<a href="#AUTHZEN-API" class="cite xref">AUTHZEN-API</a>]</span>), if available.<a href="#section-16.1-5" class="pilcrow">¶</a></p>
 <div id="error-responses">
-<section id="section-14.1.1">
+<section id="section-16.1.1">
           <h4 id="name-error-responses">
-<a href="#section-14.1.1" class="section-number selfRef">14.1.1. </a><a href="#name-error-responses" class="section-name selfRef">Error Responses</a>
+<a href="#section-16.1.1" class="section-number selfRef">16.1.1. </a><a href="#name-error-responses" class="section-name selfRef">Error Responses</a>
           </h4>
-<p id="section-14.1.1-1">Error responses use HTTPS status codes to indicate failures. The PDP MUST return a 400 Bad Request if the multipart body is malformed or if required parts are missing. Authentication and authorization failures MUST return 401 Unauthorized or 403 Forbidden, respectively.<a href="#section-14.1.1-1" class="pilcrow">¶</a></p>
-<table class="center" id="table-5">
-            <caption><a href="#table-5" class="selfRef">Table 5</a></caption>
+<p id="section-16.1.1-1">Error responses use HTTPS status codes to indicate failures. The PDP MUST return a 400 Bad Request if the multipart body is malformed or if required parts are missing. Authentication and authorization failures MUST return 401 Unauthorized or 403 Forbidden, respectively.<a href="#section-16.1.1-1" class="pilcrow">¶</a></p>
+<table class="center" id="table-9">
+            <caption><a href="#table-9" class="selfRef">Table 9</a></caption>
 <thead>
               <tr>
                 <th class="text-left" rowspan="1" colspan="1">Code</th>
@@ -2530,20 +2804,20 @@ Content-Type: application/json
 </section>
 </div>
 <div id="request-identification">
-<section id="section-14.1.2">
+<section id="section-16.1.2">
           <h4 id="name-request-identification">
-<a href="#section-14.1.2" class="section-number selfRef">14.1.2. </a><a href="#name-request-identification" class="section-name selfRef">Request Identification</a>
+<a href="#section-16.1.2" class="section-number selfRef">16.1.2. </a><a href="#name-request-identification" class="section-name selfRef">Request Identification</a>
           </h4>
-<p id="section-14.1.2-1">Requests MAY include a unique identifier in the <code>X-Request-ID</code> header as defined in the AuthZEN Authorization API (<span>[<a href="#AUTHZEN-API" class="cite xref">AUTHZEN-API</a>]</span>). If present, the PDP MUST include the same identifier in the <code>X-Request-ID</code> response header to assist in request tracing and debugging.<a href="#section-14.1.2-1" class="pilcrow">¶</a></p>
+<p id="section-16.1.2-1">Requests MAY include a unique identifier in the <code>X-Request-ID</code> header as defined in the AuthZEN Authorization API (<span>[<a href="#AUTHZEN-API" class="cite xref">AUTHZEN-API</a>]</span>). If present, the PDP MUST include the same identifier in the <code>X-Request-ID</code> response header to assist in request tracing and debugging.<a href="#section-16.1.2-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="example-non-normative-3">
-<section id="section-14.1.3">
+<section id="section-16.1.3">
           <h4 id="name-example-non-normative-4">
-<a href="#section-14.1.3" class="section-number selfRef">14.1.3. </a><a href="#name-example-non-normative-4" class="section-name selfRef">Example (non-normative)</a>
+<a href="#section-16.1.3" class="section-number selfRef">16.1.3. </a><a href="#name-example-non-normative-4" class="section-name selfRef">Example (non-normative)</a>
           </h4>
-<p id="section-14.1.3-1">The following example shows an HTTPS upload of a policy store:<a href="#section-14.1.3-1" class="pilcrow">¶</a></p>
-<div class="alignLeft art-text artwork" id="section-14.1.3-2">
+<p id="section-16.1.3-1">The following example shows an HTTPS upload of a policy store:<a href="#section-16.1.3-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-16.1.3-2">
 <pre>
 POST /access/v1/policy-store HTTP/1.1
 Host: pdp.example.com
@@ -2557,7 +2831,7 @@ Content-Type: application/zip
 
 &lt;binary .cjar content&gt;
 -----XYZ--
-</pre><a href="#section-14.1.3-2" class="pilcrow">¶</a>
+</pre><a href="#section-16.1.3-2" class="pilcrow">¶</a>
 </div>
 </section>
 </div>
@@ -2566,67 +2840,68 @@ Content-Type: application/zip
 </section>
 </div>
 <div id="security-considerations">
-<section id="section-15">
+<section id="section-17">
       <h2 id="name-security-considerations">
-<a href="#section-15" class="section-number selfRef">15. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+<a href="#section-17" class="section-number selfRef">17. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
       </h2>
 <div id="policy-store-1">
-<section id="section-15.1">
+<section id="section-17.1">
         <h3 id="name-policy-store-2">
-<a href="#section-15.1" class="section-number selfRef">15.1. </a><a href="#name-policy-store-2" class="section-name selfRef">Policy store</a>
+<a href="#section-17.1" class="section-number selfRef">17.1. </a><a href="#name-policy-store-2" class="section-name selfRef">Policy store</a>
         </h3>
-<p id="section-15.1-1">Policy stores contain authorization rules and may include sensitive configuration. Implementations MUST protect policy stores at rest and in transit using appropriate access controls for the deployment environment.<a href="#section-15.1-1" class="pilcrow">¶</a></p>
-<p id="section-15.1-2">Deployments SHOULD use signed releases or secure artifact repositories where integrity and provenance are required.<a href="#section-15.1-2" class="pilcrow">¶</a></p>
-<p id="section-15.1-3">Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate <code>configuration_endpoint</code> URIs and token metadata before trusting tokens in production.<a href="#section-15.1-3" class="pilcrow">¶</a></p>
-<p id="section-15.1-4">Policy stores SHOULD be treated as part of the trusted computing base for authorization decisions. Loading a policy store from an untrusted source without validation is NOT RECOMMENDED.<a href="#section-15.1-4" class="pilcrow">¶</a></p>
+<p id="section-17.1-1">Policy stores contain authorization rules and may include sensitive configuration. Implementations MUST protect policy stores at rest and in transit using appropriate access controls for the deployment environment.<a href="#section-17.1-1" class="pilcrow">¶</a></p>
+<p id="section-17.1-2">Deployments SHOULD use signed releases or secure artifact repositories where integrity and provenance are required.<a href="#section-17.1-2" class="pilcrow">¶</a></p>
+<p id="section-17.1-3">The Package Integrity Profile (<a href="#package-integrity" class="auto internal xref">Section 13</a>) defines content verification and signer authorization for deployments that require it. Safe Package Paths (<a href="#safe-package-paths" class="auto internal xref">Section 12</a>) applies even when that profile is not used. HTTPS and artifact hashes alone do not establish that a producer is authorized to change the active policy store.<a href="#section-17.1-3" class="pilcrow">¶</a></p>
+<p id="section-17.1-4">Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate <code>configuration_endpoint</code> URIs and token metadata before trusting tokens in production.<a href="#section-17.1-4" class="pilcrow">¶</a></p>
+<p id="section-17.1-5">Policy stores SHOULD be treated as part of the trusted computing base for authorization decisions. Loading a policy store from an untrusted source without validation is NOT RECOMMENDED.<a href="#section-17.1-5" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="custom-issuer">
-<section id="section-15.2">
+<section id="section-17.2">
         <h3 id="name-custom-issuer">
-<a href="#section-15.2" class="section-number selfRef">15.2. </a><a href="#name-custom-issuer" class="section-name selfRef">Custom issuer</a>
+<a href="#section-17.2" class="section-number selfRef">17.2. </a><a href="#name-custom-issuer" class="section-name selfRef">Custom issuer</a>
         </h3>
-<p id="section-15.2-1">Custom issuer configuration (<a href="#custom-issuers" class="auto internal xref">Section 9</a>) moves credential validation out of the mechanisms defined for trusted issuers and into a deployment-supplied token processor. The token processor is part of the trusted computing base for authorization decisions.<a href="#section-15.2-1" class="pilcrow">¶</a></p>
-<p id="section-15.2-2">Because a custom issuer has no configuration document, there is no standard mechanism for key rotation, token status, or revocation. Deployments that accept custom tokens MUST provide these controls through the token processor or surrounding infrastructure.<a href="#section-15.2-2" class="pilcrow">¶</a></p>
-<p id="section-15.2-3">All declared token types are optional, so a PDP may reach a decision with fewer tokens than a deployment anticipated. Deployments SHOULD review policies that reference custom token entity types to confirm that a decision remains correct when tokens of those types are absent.<a href="#section-15.2-3" class="pilcrow">¶</a></p>
+<p id="section-17.2-1">Custom issuer configuration (<a href="#custom-issuers" class="auto internal xref">Section 9</a>) moves credential validation out of the mechanisms defined for trusted issuers and into a deployment-supplied token processor. The token processor is part of the trusted computing base for authorization decisions.<a href="#section-17.2-1" class="pilcrow">¶</a></p>
+<p id="section-17.2-2">Because a custom issuer has no configuration document, there is no standard mechanism for key rotation, token status, or revocation. Deployments that accept custom tokens MUST provide these controls through the token processor or surrounding infrastructure.<a href="#section-17.2-2" class="pilcrow">¶</a></p>
+<p id="section-17.2-3">All declared token types are optional, so a PDP may reach a decision with fewer tokens than a deployment anticipated. Deployments SHOULD review policies that reference custom token entity types to confirm that a decision remains correct when tokens of those types are absent.<a href="#section-17.2-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="policy-store-api-1">
-<section id="section-15.3">
+<section id="section-17.3">
         <h3 id="name-policy-store-api-2">
-<a href="#section-15.3" class="section-number selfRef">15.3. </a><a href="#name-policy-store-api-2" class="section-name selfRef">Policy store API</a>
+<a href="#section-17.3" class="section-number selfRef">17.3. </a><a href="#name-policy-store-api-2" class="section-name selfRef">Policy store API</a>
         </h3>
-<p id="section-15.3-1">PDP should protect this API endpoint by taking appropriate measures to authenticate and authorize the request in accordance with <a href="https://openid.net/specs/authorization-api-1_0.html#section-11.2">Authorization API guidelines</a>.<a href="#section-15.3-1" class="pilcrow">¶</a></p>
+<p id="section-17.3-1">PDP should protect this API endpoint by taking appropriate measures to authenticate and authorize the request in accordance with <a href="https://openid.net/specs/authorization-api-1_0.html#section-11.2">Authorization API guidelines</a>.<a href="#section-17.3-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
 </div>
 <div id="iana-considerations">
-<section id="section-16">
+<section id="section-18">
       <h2 id="name-iana-considerations">
-<a href="#section-16" class="section-number selfRef">16. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+<a href="#section-18" class="section-number selfRef">18. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
       </h2>
-<p id="section-16-1">The AuthZEN working group has defined a metadata registry for OpenID AuthZEN Policy Decision Points (PDPs), <a href="https://openid.github.io/authzen/#name-authzen-policy-decision-poi">[AUTHZEN-PDP-METADATA]</a>. This document extends that registry with a requirement to add a policy store API to the registry with the following metadata.<a href="#section-16-1" class="pilcrow">¶</a></p>
-<p id="section-16-2">Metadata Name:
-<code>policy_store_endpoint</code><a href="#section-16-2" class="pilcrow">¶</a></p>
-<p id="section-16-3">Metadata Description:
-HTTPS URL of the Policy Decision Point's policy store endpoint.<a href="#section-16-3" class="pilcrow">¶</a></p>
-<p id="section-16-4">Change Controller:
-OpenID Foundation AuthZEN Working Group<a href="#section-16-4" class="pilcrow">¶</a></p>
-<p id="section-16-5">mailto:openid-specs-authzen@lists.openid.net<a href="#section-16-5" class="pilcrow">¶</a></p>
-<p id="section-16-6">Specification Document(s):
-See the <span><a href="#policy-store-api-specification" class="internal xref">Policy Store API specification</a> (<a href="#policy-store-api-specification" class="auto internal xref">Section 4</a>)</span> section.<a href="#section-16-6" class="pilcrow">¶</a></p>
+<p id="section-18-1">The AuthZEN working group has defined a metadata registry for OpenID AuthZEN Policy Decision Points (PDPs), <a href="https://openid.github.io/authzen/#name-authzen-policy-decision-poi">[AUTHZEN-PDP-METADATA]</a>. This document extends that registry with a requirement to add a policy store API to the registry with the following metadata.<a href="#section-18-1" class="pilcrow">¶</a></p>
+<p id="section-18-2">Metadata Name:
+<code>policy_store_endpoint</code><a href="#section-18-2" class="pilcrow">¶</a></p>
+<p id="section-18-3">Metadata Description:
+HTTPS URL of the Policy Decision Point's policy store endpoint.<a href="#section-18-3" class="pilcrow">¶</a></p>
+<p id="section-18-4">Change Controller:
+OpenID Foundation AuthZEN Working Group<a href="#section-18-4" class="pilcrow">¶</a></p>
+<p id="section-18-5">mailto:openid-specs-authzen@lists.openid.net<a href="#section-18-5" class="pilcrow">¶</a></p>
+<p id="section-18-6">Specification Document(s):
+See the <span><a href="#policy-store-api-specification" class="internal xref">Policy Store API specification</a> (<a href="#policy-store-api-specification" class="auto internal xref">Section 4</a>)</span> section.<a href="#section-18-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="sec-combined-references">
-<section id="section-17">
+<section id="section-19">
       <h2 id="name-references">
-<a href="#section-17" class="section-number selfRef">17. </a><a href="#name-references" class="section-name selfRef">References</a>
+<a href="#section-19" class="section-number selfRef">19. </a><a href="#name-references" class="section-name selfRef">References</a>
       </h2>
 <div id="sec-normative-references">
-<section id="section-17.1">
+<section id="section-19.1">
         <h3 id="name-normative-references">
-<a href="#section-17.1" class="section-number selfRef">17.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+<a href="#section-19.1" class="section-number selfRef">19.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
         </h3>
 <dl class="references">
 <dt id="RFC8259">[RFC8259]</dt>
@@ -2646,16 +2921,28 @@ See the <span><a href="#policy-store-api-specification" class="internal xref">Po
 <span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC7578">[RFC7578]</dt>
-      <dd>
+        <dd>
 <span class="refAuthor">Masinter, L.</span>, <span class="refTitle">"Returning Values from Forms: multipart/form-data"</span>, <span class="seriesInfo">RFC 7578</span>, <span class="seriesInfo">DOI 10.17487/RFC7578</span>, <time datetime="2015-07" class="refDate">July 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc7578">https://www.rfc-editor.org/rfc/rfc7578</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8785">[RFC8785]</dt>
+        <dd>
+<span class="refAuthor">Rundgren, A.</span>, <span class="refAuthor">Jordan, B.</span>, and <span class="refAuthor">S. Erdtman</span>, <span class="refTitle">"JSON Canonicalization Scheme (JCS)"</span>, <span class="seriesInfo">RFC 8785</span>, <span class="seriesInfo">DOI 10.17487/RFC8785</span>, <time datetime="2020-06" class="refDate">June 2020</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8785">https://www.rfc-editor.org/rfc/rfc8785</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7515">[RFC7515]</dt>
+        <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refAuthor">Bradley, J.</span>, and <span class="refAuthor">N. Sakimura</span>, <span class="refTitle">"JSON Web Signature (JWS)"</span>, <span class="seriesInfo">RFC 7515</span>, <span class="seriesInfo">DOI 10.17487/RFC7515</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc7515">https://www.rfc-editor.org/rfc/rfc7515</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7518">[RFC7518]</dt>
+      <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refTitle">"JSON Web Algorithms (JWA)"</span>, <span class="seriesInfo">RFC 7518</span>, <span class="seriesInfo">DOI 10.17487/RFC7518</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc7518">https://www.rfc-editor.org/rfc/rfc7518</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 </dl>
 </section>
 </div>
 <div id="sec-informative-references">
-<section id="section-17.2">
+<section id="section-19.2">
         <h3 id="name-informative-references">
-<a href="#section-17.2" class="section-number selfRef">17.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+<a href="#section-19.2" class="section-number selfRef">19.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
         </h3>
 <dl class="references">
 <dt id="CEDAR">[CEDAR]</dt>
