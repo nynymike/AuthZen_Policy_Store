@@ -235,7 +235,7 @@ The server validates the uploaded file and metadata. On success, it stores the f
 
 ~~~json
 {
-  "error": "Invalid metadata. Version does not match archive."
+  "error": "Version conflict: policy_store.version already recorded with a different package_digest."
 }
 ~~~
 
@@ -374,7 +374,8 @@ The top-level JSON object MUST contain the following keys:
 | `id` | REQUIRED string. A unique identifier for the policy store. It MUST be a URI conforming to RFC 3986 and MUST uniquely identify the policy store. |
 | `name` | REQUIRED string. A human-readable name for the policy store. |
 | `description` | OPTIONAL string. A human-readable description. |
-| `version` | OPTIONAL string. A semantic version of the policy store content (for example, `"1.2.0"`). |
+| `version` | REQUIRED non-empty string. A publisher-assigned version label for the release (for example, `"1.2.0"`), scoped to `policy_store.id`. The version is a human-readable label; it is not an exact content identity. The `package_digest` ({{package-integrity}}) distinguishes two packages that are incorrectly given the same version. See {{loading-activation-rollback}} for the constraint on reusing a version with different content. |
+| `release_id` | REQUIRED when version labels can be reused across environments or branches; otherwise OPTIONAL. A publisher-assigned identifier that distinguishes releases whose version labels collide. Its scope is the pair (`policy_store.id`, `release_id`); it need not be globally unique. |
 | `created_date` | OPTIONAL string. ISO 8601 date-time when the policy store was created. |
 {: title="Keys of the policy_store object"}
 
@@ -401,6 +402,7 @@ Implementations MUST NOT add additional top-level keys to `metadata.json` unless
     "name": "Acme Analytics Web Application",
     "description": "Policies for the analytics web application.",
     "version": "1.2.0",
+    "release_id": "2025-01-15-main-a1b2c3",
     "created_date": "2025-01-15T10:30:00Z"
   },
   "governance": {
@@ -536,7 +538,7 @@ The Archive Format packages the Directory Format as a ZIP archive (Constraint JA
 * The archive MUST use the ZIP format and `.cjar` file extension.
 * Paths inside the archive MUST match the Directory Format layout relative to the policy store root.
 * The archive MUST NOT require extraction to a specific absolute path; relative paths MUST be preserved.
-* Archive file names SHOULD follow the pattern `{policy-store-name}-{version}.cjar` where `version` matches `policy_store.version` in `metadata.json` when present.
+* Archive file names SHOULD follow the pattern `{policy-store-name}-{version}.cjar` where `version` matches `policy_store.version` in `metadata.json`. The file name is a convenience only; it is not authoritative and MUST NOT override `policy_store.version`, `policy_store.release_id`, or the `package_digest`.
 
 PDPs loading `.cjar` files SHOULD validate structure and required files before evaluation.
 
@@ -549,13 +551,15 @@ PDPs and tools that load policy stores SHOULD perform the following steps:
 3. Parse and validate `metadata.json`.
 4. Confirm the implementation supports the declared `policy_store_spec_version`. A PDP MUST reject a policy store whose `policy_store_spec_version` it does not implement.
 5. Confirm the implementation supports the declared `policy_language` and `policy_language_version`, or reject the store.
-6. Apply the deployment's integrity requirement and, when present or required, verify the Package Integrity Profile ({{package-integrity}}). Complete verification before loading artifacts into the policy engine.
+6. Apply the deployment's integrity requirement and, when present or required, verify the Package Integrity Profile ({{package-integrity}}). When the profile is in effect, the loader MUST confirm that `metadata.json` is present in the signed inventory and that its verified bytes match before treating any metadata value as authenticated. Complete verification before loading artifacts into the policy engine.
 7. If present, load `schema/`; then load policies and optional templates, entities, trusted issuers, and custom issuers according to policy engine rules.
 8. Verify policy engine-specific requirements if any (such as unique policy identifiers).
 9. Verify that no schema entity type is declared by more than one issuer file, whether under `trusted-issuers/` or `custom-issuers/` ({{custom-issuers}}).
 10. If `custom-issuers/` is present, determine whether the implementation can process each declared entity type ({{custom-issuers}}).
 
 Failure at any REQUIRED validation step MUST result in rejecting the policy store for evaluation. Rejection MUST leave the previously active store unchanged.
+
+On acceptance, and again on activation, the PDP MUST record the tuple (`policy_store.id`, `policy_store.version`, `package_digest`). When the Package Integrity Profile is in effect, these values MUST be taken from the verified `metadata.json` bytes and the computed `package_digest`. The conflict and activation constraints in {{loading-activation-rollback}} apply to these recorded tuples.
 
 # Safe Package Paths {#safe-package-paths}
 
@@ -618,13 +622,21 @@ The `governance.owner` and `governance.author` URNs remain claims. A verified si
 
 Trust anchors, permitted algorithms, approval thresholds, key validity periods, and revocation status MUST be managed outside the incoming package. Key rotation MAY allow a configured overlap, but a package cannot introduce its own replacement trusted key. A revoked key MUST NOT count toward new acceptance. Previously activated content requires a deployment decision when its signer is revoked; this format does not provide a revocation service. If required current trust information is unavailable, the loader MUST reject new activation.
 
-## Loading, activation, and rollback
+## Loading, activation, and rollback {#loading-activation-rollback}
 
-After safe path and structural validation, a loader MUST verify the complete inventory, calculate the package digest, and enforce signature and trust policy before any policy-engine evaluation or issuer processing. It MUST then apply the base format's metadata, language, and engine validation rules to the same snapshot. Successful signature verification does not establish policy correctness or safe issuer configuration.
+After safe path and structural validation, a loader MUST verify the complete inventory, calculate the package digest, and enforce signature and trust policy before any policy-engine evaluation or issuer processing. It MUST confirm that `metadata.json` is in the signed inventory and use its verified bytes as the source of `policy_store.id`, `policy_store.version`, and `policy_store.release_id`. It MUST then apply the base format's metadata, language, and engine validation rules to the same snapshot. Successful signature verification does not establish policy correctness or safe issuer configuration.
+
+On acceptance, the PDP MUST record the tuple (`policy_store.id`, `policy_store.version`, `package_digest`), together with `release_id` when present. It MUST reject reuse of the same (`policy_store.id`, `policy_store.version`) with a `package_digest` that differs from the one previously recorded for that pair, unless an explicit administrative correction process is defined and authorized for that deployment. An upload that repeats an already recorded (`policy_store.id`, `policy_store.version`, `package_digest`) MAY be treated as idempotent. On activation, the PDP MUST record the same tuple for the release it makes active.
 
 Publishing, fetching, uploading, approving, and activating are separate permissions. The existing upload endpoint remains subject to administrative authentication and authorization; accepting a package MUST NOT grant its producer permission to activate it. This profile adds no activation, rollback, or revocation API and no ability for a resource to push policy into a PDP.
 
 A valid old signature remains cryptographically valid. Deployments MUST apply an external freshness or rollback policy for the expected store and record the accepted digest. A signed version string or creation date alone is insufficient. An intentional rollback MUST be authorized through the deployment's administrative process and logged with the selected digest. A missing signature, unsupported profile, or failed verification MUST NOT cause a downgrade to unsigned acceptance.
+
+### Active snapshot and rollout
+
+Acceptance and activation are distinct. Accepting a release records and stores it; activation makes one accepted release the active snapshot that the policy engine evaluates against. Uploading a newer release does not change the active snapshot until that release is activated.
+
+For the purpose of decision evidence, the content a PDP "used" for a decision is the release of its active loaded snapshot at decision time. During a rollout, when a newer release has been accepted or uploaded but not yet activated, the PDP MUST report the `policy_store.version` and `package_digest` of the currently active snapshot, not those of the newer, not-yet-activated release. A single decision MUST be evaluated entirely against one active snapshot.
 
 ## Validation cases for implementers
 
@@ -650,6 +662,8 @@ The following are test requirements, not a claim that a conformance suite or int
 | Delete both integrity files where local policy requires integrity | Reject attempted unsigned downgrade. |
 | Replay an older valid package disallowed by local rollback policy | Reject activation despite valid signatures. |
 | Change metadata to a different store with weaker trust settings | Reject expected-store mismatch. |
+| Re-upload the same (`policy_store.id`, `version`, `package_digest`) | Accept as idempotent; no new content identity. |
+| Reuse the same (`policy_store.id`, `version`) with a different `package_digest`, absent an authorized correction process | Reject version-digest conflict. |
 
 ## Questions for working-group review
 
@@ -663,6 +677,12 @@ so that:
 * PDPs implementing AuthZEN MAY advertise or load policy stores in a portable format.
 * CI/CD pipelines MAY version, review, and promote policy stores as atomic units.
 * Audit systems MAY bind decision logs to a specific `policy_store.id`.
+
+## Decision records
+
+A PDP that produces a decision record for an authorization decision MUST include both the `policy_store.version` and the `package_digest` of the active loaded snapshot used to reach that decision. The version records the human-readable release label, and the `package_digest` lets agent evidence verify the exact policy content that was used. When the Package Integrity Profile is not in effect, the PDP MUST record that the active snapshot is unsigned rather than reporting a `package_digest` it cannot substantiate.
+
+Consistent with {{loading-activation-rollback}}, "the active loaded snapshot used" is the snapshot active at decision time. When a newer release has been uploaded or accepted but not activated, the decision record MUST report the version and digest of the currently active snapshot.
 
 # Update to Policy Decision Point Metadata {#update-pdp-metadata}
 
@@ -702,7 +722,7 @@ This specification defines an HTTPS binding using JSON serialization which MUST 
 
 All API requests to the policy store endpoint MUST be made via an HTTPS POST request.
 
-Requests MUST include a `Content-Type` header with the value `multipart/form-data` [[RFC7578]]. The request body MUST conform to the request structure defined in ({{api-request}}).
+Requests MUST include a `Content-Type` header with the value `multipart/form-data` ({{RFC7578}}). The request body MUST conform to the request structure defined in ({{api-request}}).
 
 | API Endpoint | Default Path | Metadata Parameter | Request Schema | Response Schema |
 | :--- | :--- | :--- | :--- | :--- |
@@ -757,6 +777,8 @@ Policy stores contain authorization rules and may include sensitive configuratio
 Deployments SHOULD use signed releases or secure artifact repositories where integrity and provenance are required.
 
 The Package Integrity Profile ({{package-integrity}}) defines content verification and signer authorization for deployments that require it. Safe Package Paths ({{safe-package-paths}}) applies even when that profile is not used. HTTPS and artifact hashes alone do not establish that a producer is authorized to change the active policy store.
+
+The `policy_store.version` label is not anti-rollback protection or exact content identity. Audit correctness depends on binding each decision to the `package_digest` of the active snapshot and rejecting reuse of a version with conflicting content ({{loading-activation-rollback}}). Deployments SHOULD retain acceptance, activation, and decision records so that a decision can be traced to the exact policy content that produced it.
 
 Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate `configuration_endpoint` URIs and token metadata before trusting tokens in production.
 
@@ -822,7 +844,8 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
         "id": { "type": "string", "format": "uri"},
         "name": { "type": "string" },
         "description": { "type": "string" },
-        "version": { "type": "string" },
+        "version": { "type": "string", "minLength": 1 },
+        "release_id": { "type": "string", "minLength": 1 },
         "created_date": { "type": "string", "format": "date-time" }
       },
       "additionalProperties": false
@@ -988,7 +1011,8 @@ todo-app-policy-store/
   "policy_store": {
     "id": "http://acme.com/apps/todo/policystore/",
     "name": "todo_app_policy_store",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "release_id": "2025-01-10-main-9f8e7d"
   },
   "governance": {
   "owner": "urn:acme:user:ownername",
@@ -1039,7 +1063,8 @@ hr-policy-store/
   "policy_store": {
     "id": "http://acme.com/hr/policystore/",
     "name": "hr_policy_store",
-    "version": "2.0.0"
+    "version": "2.0.0",
+    "release_id": "2025-02-02-release-4c5d6e"
   },
   "governance": {
   "owner": "urn:acme:user:ownername",

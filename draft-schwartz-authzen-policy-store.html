@@ -13,7 +13,7 @@
        The Policy Store format defines a canonical, PDP-neutral directory structure for organizing authorization policies and their associated metadata. It provides a common structure for policies, schemas, default entities, trusted token issuers, custom token issuers, and other artifacts required for policy evaluation. Using a well-known structure reduces the need for PDP-specific configuration. It also improves the discoverability and portability of these artifacts across ecosystem tools like policy authoring tools, management, and deployment tools. 
        This specification also defines a compressed archive format (.cjar, Constraint JAR) for packaging a policy store for distribution, versioning, and deployment. 
     " name="description">
-<meta content="xml2rfc 3.34.1" name="generator">
+<meta content="xml2rfc 3.33.0" name="generator">
 <meta content="Authorization" name="keyword">
 <meta content="API" name="keyword">
 <meta content="Policy Store" name="keyword">
@@ -22,19 +22,18 @@
 <meta content="CJAR" name="keyword">
 <meta content="draft-schwartz-authzen-policy-store" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.34.1
-    Python 3.12.10
-    ConfigArgParse 1.7.7
+  xml2rfc 3.33.0
+    Python 3.14.6
+    ConfigArgParse 1.7.5
     google-i18n-address 3.1.1
     intervaltree 3.2.1
     Jinja2 3.1.6
-    lxml 6.1.3
-    natsort 8.4.0
-    platformdirs 4.11.12
+    lxml 6.1.1
+    platformdirs 4.10.0
     pycountry 26.2.16
     PyYAML 6.0.3
     requests 2.34.2
-    wcwidth 0.9.1
+    wcwidth 0.7.0
 -->
 <link href="draft-schwartz-authzen-policy-store.xml" rel="alternate" type="application/rfc+xml">
 <link href="#copyright" rel="license">
@@ -359,10 +358,6 @@ table p {
   /* XXX to avoid bottom margin on table row signifiers. If paragraphs should
      be allowed within tables more generally, it would be far better to select on a class. */
   margin: 0;
-}
-sub,
-sup {
- white-space: nowrap;
 }
 
 /* pilcrow */
@@ -1071,9 +1066,6 @@ aside > p {
   figcaption, table caption {
     page-break-before: avoid;
   }
-  table {
-    page-break-inside: avoid;
-  }
 }
 /* Font size adjustments for print */
 @media print {
@@ -1247,7 +1239,7 @@ li > p:last-of-type:only-child {
 <dd class="workgroup">OpenID AuthZEN</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2026-09-23" class="published">23 September 2026</time>
+<time datetime="2026-09-29" class="published">29 September 2026</time>
     </dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
@@ -1432,6 +1424,11 @@ li > p:last-of-type:only-child {
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.3">
                 <p id="section-toc.1-1.13.2.3.1"><a href="#section-13.3" class="auto internal xref">13.3</a>.  <a href="#name-loading-activation-and-roll" class="internal xref">Loading, activation, and rollback</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.3.2.1">
+                    <p id="section-toc.1-1.13.2.3.2.1.1"><a href="#section-13.3.1" class="auto internal xref">13.3.1</a>.  <a href="#name-active-snapshot-and-rollout" class="internal xref">Active snapshot and rollout</a></p>
+</li>
+                </ul>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.4">
                 <p id="section-toc.1-1.13.2.4.1"><a href="#section-13.4" class="auto internal xref">13.4</a>.  <a href="#name-validation-cases-for-implem" class="internal xref">Validation cases for implementers</a></p>
@@ -1443,6 +1440,11 @@ li > p:last-of-type:only-child {
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14">
             <p id="section-toc.1-1.14.1"><a href="#section-14" class="auto internal xref">14</a>. <a href="#name-relationship-to-authzen" class="internal xref">Relationship to AuthZEN</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.1">
+                <p id="section-toc.1-1.14.2.1.1"><a href="#section-14.1" class="auto internal xref">14.1</a>.  <a href="#name-decision-records" class="internal xref">Decision records</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15">
             <p id="section-toc.1-1.15.1"><a href="#section-15" class="auto internal xref">15</a>. <a href="#name-update-to-policy-decision-p" class="internal xref">Update to Policy Decision Point Metadata</a></p>
@@ -1770,7 +1772,7 @@ Content-Type: application/zip
 <div class="lang-json sourcecode" id="section-4.4-5">
 <pre>
 {
-  "error": "Invalid metadata. Version does not match archive."
+  "error": "Version conflict: policy_store.version already recorded with a different package_digest."
 }
 </pre><a href="#section-4.4-5" class="pilcrow">¶</a>
 </div>
@@ -2083,7 +2085,13 @@ policy-store-root/
                 <td class="text-left" rowspan="1" colspan="1">
                   <code>version</code>
 </td>
-                <td class="text-left" rowspan="1" colspan="1">OPTIONAL string. A semantic version of the policy store content (for example, <code>"1.2.0"</code>).</td>
+                <td class="text-left" rowspan="1" colspan="1">REQUIRED non-empty string. A publisher-assigned version label for the release (for example, <code>"1.2.0"</code>), scoped to <code>policy_store.id</code>. The version is a human-readable label; it is not an exact content identity. The <code>package_digest</code> (<a href="#package-integrity" class="auto internal xref">Section 13</a>) distinguishes two packages that are incorrectly given the same version. See <a href="#loading-activation-rollback" class="auto internal xref">Section 13.3</a> for the constraint on reusing a version with different content.</td>
+              </tr>
+              <tr>
+                <td class="text-left" rowspan="1" colspan="1">
+                  <code>release_id</code>
+</td>
+                <td class="text-left" rowspan="1" colspan="1">REQUIRED when version labels can be reused across environments or branches; otherwise OPTIONAL. A publisher-assigned identifier that distinguishes releases whose version labels collide. Its scope is the pair (<code>policy_store.id</code>, <code>release_id</code>); it need not be globally unique.</td>
               </tr>
               <tr>
                 <td class="text-left" rowspan="1" colspan="1">
@@ -2152,6 +2160,7 @@ policy-store-root/
     "name": "Acme Analytics Web Application",
     "description": "Policies for the analytics web application.",
     "version": "1.2.0",
+    "release_id": "2025-01-15-main-a1b2c3",
     "created_date": "2025-01-15T10:30:00Z"
   },
   "governance": {
@@ -2386,7 +2395,7 @@ policy-store-root/
             <p id="section-10.1-1.3.1">The archive MUST NOT require extraction to a specific absolute path; relative paths MUST be preserved.<a href="#section-10.1-1.3.1" class="pilcrow">¶</a></p>
 </li>
           <li class="normal" id="section-10.1-1.4">
-            <p id="section-10.1-1.4.1">Archive file names SHOULD follow the pattern <code>{policy-store-name}-{version}.cjar</code> where <code>version</code> matches <code>policy_store.version</code> in <code>metadata.json</code> when present.<a href="#section-10.1-1.4.1" class="pilcrow">¶</a></p>
+            <p id="section-10.1-1.4.1">Archive file names SHOULD follow the pattern <code>{policy-store-name}-{version}.cjar</code> where <code>version</code> matches <code>policy_store.version</code> in <code>metadata.json</code>. The file name is a convenience only; it is not authoritative and MUST NOT override <code>policy_store.version</code>, <code>policy_store.release_id</code>, or the <code>package_digest</code>.<a href="#section-10.1-1.4.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 <p id="section-10.1-2">PDPs loading <code>.cjar</code> files SHOULD validate structure and required files before evaluation.<a href="#section-10.1-2" class="pilcrow">¶</a></p>
@@ -2417,7 +2426,7 @@ policy-store-root/
           <p id="section-11-2.5.1">Confirm the implementation supports the declared <code>policy_language</code> and <code>policy_language_version</code>, or reject the store.<a href="#section-11-2.5.1" class="pilcrow">¶</a></p>
 </li>
         <li id="section-11-2.6">
-          <p id="section-11-2.6.1">Apply the deployment's integrity requirement and, when present or required, verify the Package Integrity Profile (<a href="#package-integrity" class="auto internal xref">Section 13</a>). Complete verification before loading artifacts into the policy engine.<a href="#section-11-2.6.1" class="pilcrow">¶</a></p>
+          <p id="section-11-2.6.1">Apply the deployment's integrity requirement and, when present or required, verify the Package Integrity Profile (<a href="#package-integrity" class="auto internal xref">Section 13</a>). When the profile is in effect, the loader MUST confirm that <code>metadata.json</code> is present in the signed inventory and that its verified bytes match before treating any metadata value as authenticated. Complete verification before loading artifacts into the policy engine.<a href="#section-11-2.6.1" class="pilcrow">¶</a></p>
 </li>
         <li id="section-11-2.7">
           <p id="section-11-2.7.1">If present, load <code>schema/</code>; then load policies and optional templates, entities, trusted issuers, and custom issuers according to policy engine rules.<a href="#section-11-2.7.1" class="pilcrow">¶</a></p>
@@ -2433,6 +2442,7 @@ policy-store-root/
 </li>
       </ol>
 <p id="section-11-3">Failure at any REQUIRED validation step MUST result in rejecting the policy store for evaluation. Rejection MUST leave the previously active store unchanged.<a href="#section-11-3" class="pilcrow">¶</a></p>
+<p id="section-11-4">On acceptance, and again on activation, the PDP MUST record the tuple (<code>policy_store.id</code>, <code>policy_store.version</code>, <code>package_digest</code>). When the Package Integrity Profile is in effect, these values MUST be taken from the verified <code>metadata.json</code> bytes and the computed <code>package_digest</code>. The conflict and activation constraints in <a href="#loading-activation-rollback" class="auto internal xref">Section 13.3</a> apply to these recorded tuples.<a href="#section-11-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="safe-package-paths">
@@ -2560,14 +2570,24 @@ policy-store-root/
 <p id="section-13.2-7">Trust anchors, permitted algorithms, approval thresholds, key validity periods, and revocation status MUST be managed outside the incoming package. Key rotation MAY allow a configured overlap, but a package cannot introduce its own replacement trusted key. A revoked key MUST NOT count toward new acceptance. Previously activated content requires a deployment decision when its signer is revoked; this format does not provide a revocation service. If required current trust information is unavailable, the loader MUST reject new activation.<a href="#section-13.2-7" class="pilcrow">¶</a></p>
 </section>
 </div>
-<div id="loading-activation-and-rollback">
+<div id="loading-activation-rollback">
 <section id="section-13.3">
         <h3 id="name-loading-activation-and-roll">
 <a href="#section-13.3" class="section-number selfRef">13.3. </a><a href="#name-loading-activation-and-roll" class="section-name selfRef">Loading, activation, and rollback</a>
         </h3>
-<p id="section-13.3-1">After safe path and structural validation, a loader MUST verify the complete inventory, calculate the package digest, and enforce signature and trust policy before any policy-engine evaluation or issuer processing. It MUST then apply the base format's metadata, language, and engine validation rules to the same snapshot. Successful signature verification does not establish policy correctness or safe issuer configuration.<a href="#section-13.3-1" class="pilcrow">¶</a></p>
-<p id="section-13.3-2">Publishing, fetching, uploading, approving, and activating are separate permissions. The existing upload endpoint remains subject to administrative authentication and authorization; accepting a package MUST NOT grant its producer permission to activate it. This profile adds no activation, rollback, or revocation API and no ability for a resource to push policy into a PDP.<a href="#section-13.3-2" class="pilcrow">¶</a></p>
-<p id="section-13.3-3">A valid old signature remains cryptographically valid. Deployments MUST apply an external freshness or rollback policy for the expected store and record the accepted digest. A signed version string or creation date alone is insufficient. An intentional rollback MUST be authorized through the deployment's administrative process and logged with the selected digest. A missing signature, unsupported profile, or failed verification MUST NOT cause a downgrade to unsigned acceptance.<a href="#section-13.3-3" class="pilcrow">¶</a></p>
+<p id="section-13.3-1">After safe path and structural validation, a loader MUST verify the complete inventory, calculate the package digest, and enforce signature and trust policy before any policy-engine evaluation or issuer processing. It MUST confirm that <code>metadata.json</code> is in the signed inventory and use its verified bytes as the source of <code>policy_store.id</code>, <code>policy_store.version</code>, and <code>policy_store.release_id</code>. It MUST then apply the base format's metadata, language, and engine validation rules to the same snapshot. Successful signature verification does not establish policy correctness or safe issuer configuration.<a href="#section-13.3-1" class="pilcrow">¶</a></p>
+<p id="section-13.3-2">On acceptance, the PDP MUST record the tuple (<code>policy_store.id</code>, <code>policy_store.version</code>, <code>package_digest</code>), together with <code>release_id</code> when present. It MUST reject reuse of the same (<code>policy_store.id</code>, <code>policy_store.version</code>) with a <code>package_digest</code> that differs from the one previously recorded for that pair, unless an explicit administrative correction process is defined and authorized for that deployment. An upload that repeats an already recorded (<code>policy_store.id</code>, <code>policy_store.version</code>, <code>package_digest</code>) MAY be treated as idempotent. On activation, the PDP MUST record the same tuple for the release it makes active.<a href="#section-13.3-2" class="pilcrow">¶</a></p>
+<p id="section-13.3-3">Publishing, fetching, uploading, approving, and activating are separate permissions. The existing upload endpoint remains subject to administrative authentication and authorization; accepting a package MUST NOT grant its producer permission to activate it. This profile adds no activation, rollback, or revocation API and no ability for a resource to push policy into a PDP.<a href="#section-13.3-3" class="pilcrow">¶</a></p>
+<p id="section-13.3-4">A valid old signature remains cryptographically valid. Deployments MUST apply an external freshness or rollback policy for the expected store and record the accepted digest. A signed version string or creation date alone is insufficient. An intentional rollback MUST be authorized through the deployment's administrative process and logged with the selected digest. A missing signature, unsupported profile, or failed verification MUST NOT cause a downgrade to unsigned acceptance.<a href="#section-13.3-4" class="pilcrow">¶</a></p>
+<div id="active-snapshot-and-rollout">
+<section id="section-13.3.1">
+          <h4 id="name-active-snapshot-and-rollout">
+<a href="#section-13.3.1" class="section-number selfRef">13.3.1. </a><a href="#name-active-snapshot-and-rollout" class="section-name selfRef">Active snapshot and rollout</a>
+          </h4>
+<p id="section-13.3.1-1">Acceptance and activation are distinct. Accepting a release records and stores it; activation makes one accepted release the active snapshot that the policy engine evaluates against. Uploading a newer release does not change the active snapshot until that release is activated.<a href="#section-13.3.1-1" class="pilcrow">¶</a></p>
+<p id="section-13.3.1-2">For the purpose of decision evidence, the content a PDP "used" for a decision is the release of its active loaded snapshot at decision time. During a rollout, when a newer release has been accepted or uploaded but not yet activated, the PDP MUST report the <code>policy_store.version</code> and <code>package_digest</code> of the currently active snapshot, not those of the newer, not-yet-activated release. A single decision MUST be evaluated entirely against one active snapshot.<a href="#section-13.3.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
 </section>
 </div>
 <div id="validation-cases-for-implementers">
@@ -2657,6 +2677,14 @@ policy-store-root/
               <td class="text-left" rowspan="1" colspan="1">Change metadata to a different store with weaker trust settings</td>
               <td class="text-left" rowspan="1" colspan="1">Reject expected-store mismatch.</td>
             </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Re-upload the same (<code>policy_store.id</code>, <code>version</code>, <code>package_digest</code>)</td>
+              <td class="text-left" rowspan="1" colspan="1">Accept as idempotent; no new content identity.</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">Reuse the same (<code>policy_store.id</code>, <code>version</code>) with a different <code>package_digest</code>, absent an authorized correction process</td>
+              <td class="text-left" rowspan="1" colspan="1">Reject version-digest conflict.</td>
+            </tr>
           </tbody>
         </table>
 </section>
@@ -2689,6 +2717,15 @@ so that:<a href="#section-14-1" class="pilcrow">¶</a></p>
           <p id="section-14-2.3.1">Audit systems MAY bind decision logs to a specific <code>policy_store.id</code>.<a href="#section-14-2.3.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
+<div id="decision-records">
+<section id="section-14.1">
+        <h3 id="name-decision-records">
+<a href="#section-14.1" class="section-number selfRef">14.1. </a><a href="#name-decision-records" class="section-name selfRef">Decision records</a>
+        </h3>
+<p id="section-14.1-1">A PDP that produces a decision record for an authorization decision MUST include both the <code>policy_store.version</code> and the <code>package_digest</code> of the active loaded snapshot used to reach that decision. The version records the human-readable release label, and the <code>package_digest</code> lets agent evidence verify the exact policy content that was used. When the Package Integrity Profile is not in effect, the PDP MUST record that the active snapshot is unsigned rather than reporting a <code>package_digest</code> it cannot substantiate.<a href="#section-14.1-1" class="pilcrow">¶</a></p>
+<p id="section-14.1-2">Consistent with <a href="#loading-activation-rollback" class="auto internal xref">Section 13.3</a>, "the active loaded snapshot used" is the snapshot active at decision time. When a newer release has been uploaded or accepted but not activated, the decision record MUST report the version and digest of the currently active snapshot.<a href="#section-14.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
 </section>
 </div>
 <div id="update-pdp-metadata">
@@ -2735,7 +2772,7 @@ Content-Type: application/json
 <a href="#section-16.1" class="section-number selfRef">16.1. </a><a href="#name-https-json-binding" class="section-name selfRef">HTTPS JSON Binding</a>
         </h3>
 <p id="section-16.1-1">All API requests to the policy store endpoint MUST be made via an HTTPS POST request.<a href="#section-16.1-1" class="pilcrow">¶</a></p>
-<p id="section-16.1-2">Requests MUST include a <code>Content-Type</code> header with the value <code>multipart/form-data</code> [<span>[<a href="#RFC7578" class="cite xref">RFC7578</a>]</span>]. The request body MUST conform to the request structure defined in (<a href="#api-request" class="auto internal xref">Section 4.3</a>).<a href="#section-16.1-2" class="pilcrow">¶</a></p>
+<p id="section-16.1-2">Requests MUST include a <code>Content-Type</code> header with the value <code>multipart/form-data</code> (<span>[<a href="#RFC7578" class="cite xref">RFC7578</a>]</span>). The request body MUST conform to the request structure defined in (<a href="#api-request" class="auto internal xref">Section 4.3</a>).<a href="#section-16.1-2" class="pilcrow">¶</a></p>
 <table class="center" id="table-8">
           <caption><a href="#table-8" class="selfRef">Table 8</a></caption>
 <thead>
@@ -2852,8 +2889,9 @@ Content-Type: application/zip
 <p id="section-17.1-1">Policy stores contain authorization rules and may include sensitive configuration. Implementations MUST protect policy stores at rest and in transit using appropriate access controls for the deployment environment.<a href="#section-17.1-1" class="pilcrow">¶</a></p>
 <p id="section-17.1-2">Deployments SHOULD use signed releases or secure artifact repositories where integrity and provenance are required.<a href="#section-17.1-2" class="pilcrow">¶</a></p>
 <p id="section-17.1-3">The Package Integrity Profile (<a href="#package-integrity" class="auto internal xref">Section 13</a>) defines content verification and signer authorization for deployments that require it. Safe Package Paths (<a href="#safe-package-paths" class="auto internal xref">Section 12</a>) applies even when that profile is not used. HTTPS and artifact hashes alone do not establish that a producer is authorized to change the active policy store.<a href="#section-17.1-3" class="pilcrow">¶</a></p>
-<p id="section-17.1-4">Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate <code>configuration_endpoint</code> URIs and token metadata before trusting tokens in production.<a href="#section-17.1-4" class="pilcrow">¶</a></p>
-<p id="section-17.1-5">Policy stores SHOULD be treated as part of the trusted computing base for authorization decisions. Loading a policy store from an untrusted source without validation is NOT RECOMMENDED.<a href="#section-17.1-5" class="pilcrow">¶</a></p>
+<p id="section-17.1-4">The <code>policy_store.version</code> label is not anti-rollback protection or exact content identity. Audit correctness depends on binding each decision to the <code>package_digest</code> of the active snapshot and rejecting reuse of a version with conflicting content (<a href="#loading-activation-rollback" class="auto internal xref">Section 13.3</a>). Deployments SHOULD retain acceptance, activation, and decision records so that a decision can be traced to the exact policy content that produced it.<a href="#section-17.1-4" class="pilcrow">¶</a></p>
+<p id="section-17.1-5">Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate <code>configuration_endpoint</code> URIs and token metadata before trusting tokens in production.<a href="#section-17.1-5" class="pilcrow">¶</a></p>
+<p id="section-17.1-6">Policy stores SHOULD be treated as part of the trusted computing base for authorization decisions. Loading a policy store from an untrusted source without validation is NOT RECOMMENDED.<a href="#section-17.1-6" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="custom-issuer">
@@ -3004,7 +3042,8 @@ See the <span><a href="#policy-store-api-specification" class="internal xref">Po
         "id": { "type": "string", "format": "uri"},
         "name": { "type": "string" },
         "description": { "type": "string" },
-        "version": { "type": "string" },
+        "version": { "type": "string", "minLength": 1 },
+        "release_id": { "type": "string", "minLength": 1 },
         "created_date": { "type": "string", "format": "date-time" }
       },
       "additionalProperties": false
@@ -3197,7 +3236,8 @@ todo-app-policy-store/
   "policy_store": {
     "id": "http://acme.com/apps/todo/policystore/",
     "name": "todo_app_policy_store",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "release_id": "2025-01-10-main-9f8e7d"
   },
   "governance": {
   "owner": "urn:acme:user:ownername",
@@ -3252,7 +3292,8 @@ hr-policy-store/
   "policy_store": {
     "id": "http://acme.com/hr/policystore/",
     "name": "hr_policy_store",
-    "version": "2.0.0"
+    "version": "2.0.0",
+    "release_id": "2025-02-02-release-4c5d6e"
   },
   "governance": {
   "owner": "urn:acme:user:ownername",
