@@ -1240,7 +1240,7 @@ li > p:last-of-type:only-child {
 <dd class="workgroup">OpenID AuthZEN</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2026-10-13" class="published">13 October 2026</time>
+<time datetime="2026-10-14" class="published">14 October 2026</time>
     </dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
@@ -2144,8 +2144,7 @@ policy-store-root/
           <dt id="section-8.1-4.1">
 <code>type</code>:</dt>
           <dd style="margin-left: 1.5em" id="section-8.1-4.2">
-            <p id="section-8.1-4.2.1">REQUIRED non-empty string. The type of token released by the issuer (e.g., <code>jwt</code> for JSON Web Tokens or <code>custom</code> for non-JWT tokens).
-TODO: is the <code>type</code> free-form or a limited number of values?<a href="#section-8.1-4.2.1" class="pilcrow">¶</a></p>
+            <p id="section-8.1-4.2.1">REQUIRED non-empty string. The type of token released by the issuer. Valid values are <code>jwt</code> for JSON Web Tokens or <code>custom</code> for non-JWT tokens.<a href="#section-8.1-4.2.1" class="pilcrow">¶</a></p>
 </dd>
           <dd class="break"></dd>
 <dt id="section-8.1-4.3">
@@ -2927,39 +2926,116 @@ See the <span><a href="#policy-store-api-specification" class="internal xref">Po
         <h3 id="name-trusted-issuer-schema">
 <a href="#appendix-A.2" class="section-number selfRef">A.2. </a><a href="#name-trusted-issuer-schema" class="section-name selfRef">Trusted Issuer Schema</a>
         </h3>
-<p id="appendix-A.2-1">TODO: update this schema
-~~~ json
+<div class="breakable lang-json sourcecode" id="appendix-A.2-1">
+<pre>
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jans.io/cedarling/policy-store/v2/trusted-issuers.schema.json",
+  "title": "Cedarling trusted-issuers.json (policy store format v2)",
+  "description": "Map of Cedar entity type -&gt; token type entry. Not expressible in JSON Schema and checked at load (D1, D4, D5): duplicate keys, one `issuer` = one kind / one `iss` / one key source, same `iss` with different `jwks` across issuers, unique `context.tokens` keys (case-insensitive issuer prefix).",
   "type": "object",
-  "required": ["id", "name", "configuration_endpoint"],
-  "properties": {
-    "id": { "type": "string", "format": "uri"},
-    "name": { "type": "string", "minLength": 1 },
-    "description": { "type": "string" },
-    "configuration_endpoint": { "type": "string", "format": "uri" },
-    "token_metadata": {
+  "propertyNames": { "$ref": "#/$defs/entityTypeName" },
+  "additionalProperties": { "$ref": "#/$defs/entry" },
+  "$defs": {
+    "identifier": {
+      "description": "Single Cedar identifier.",
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "entityTypeName": {
+      "description": "Cedar entity type, equal to request `TokenInput.mapping`. Last segment is the type part of the `context.tokens` key. Final validity is checked by cedar_policy::EntityTypeName (reserved words etc.).",
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z_][A-Za-z0-9_]*)*$"
+    },
+    "issuer": {
+      "$ref": "#/$defs/identifier",
+      "description": "Issuer identity. Policy-visible: namespace of `{issuer}::TrustedIssuer` and, lowercased, prefix of the `context.tokens` key."
+    },
+    "requiredClaims": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "default": []
+    },
+    "entry": {
       "type": "object",
-      "patternProperties": {
-        "^[A-Za-z_][A-Za-z0-9<em>]*(::[A-Za-z</em>][A-Za-z0-9_]<em>)</em>$": {
-          "type": "object",
-          "required": ["required_claims"],
-          "properties": {
-            "required_claims": {
-              "type": "array",
-              "items": { "type": "string", "minLength": 1 },
-              "uniqueItems": true
-            }
-          },
-          "additionalProperties": true
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["jwt", "custom"] }
+      },
+      "oneOf": [
+        { "$ref": "#/$defs/jwtEntry" },
+        { "$ref": "#/$defs/customEntry" }
+      ]
+    },
+    "jwtEntry": {
+      "type": "object",
+      "required": ["type", "issuer", "configuration_endpoints"],
+      "properties": {
+        "type": { "const": "jwt" },
+        "issuer": { "$ref": "#/$defs/issuer" },
+        "configuration_endpoints": { "$ref": "#/$defs/keySource" },
+        "token_id": {
+          "description": "Claim used as the token id.",
+          "type": "string",
+          "minLength": 1,
+          "default": "jti"
+        },
+        "required_claims": {
+          "$ref": "#/$defs/requiredClaims",
+          "description": "Presence + RFC 7519 value validation."
         }
       },
       "additionalProperties": false
+    },
+    "customEntry": {
+      "type": "object",
+      "required": ["type", "issuer"],
+      "properties": {
+        "type": { "const": "custom" },
+        "issuer": { "$ref": "#/$defs/issuer" },
+        "required_claims": {
+          "$ref": "#/$defs/requiredClaims",
+          "description": "Presence in processor output."
+        }
+      },
+      "additionalProperties": false
+    },
+    "keySource": {
+      "description": "Exactly one form (D6).",
+      "oneOf": [
+        {
+          "title": "Discovery",
+          "description": "Expected `iss` = this URL minus `/.well-known/openid-configuration`; keys from discovered `jwks_uri`.",
+          "type": "object",
+          "required": ["configuration"],
+          "properties": {
+            "configuration": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://[^?#]+/\\.well-known/openid-configuration$"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "title": "Static",
+          "description": "No discovery; keys from `jwks`, expected `iss` given explicitly.",
+          "type": "object",
+          "required": ["jwks", "iss"],
+          "properties": {
+            "jwks": { "type": "string", "format": "uri" },
+            "iss": { "type": "string", "format": "uri" }
+          },
+          "additionalProperties": false
+        }
+      ]
     }
-  },
-  "additionalProperties": true
+  }
 }
-~~~<a href="#appendix-A.2-1" class="pilcrow">¶</a></p>
+
+</pre><a href="#appendix-A.2-1" class="pilcrow">¶</a>
+</div>
 </section>
 </div>
 <div id="entity-file-schema">

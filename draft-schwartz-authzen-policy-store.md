@@ -409,8 +409,7 @@ The key of each map entry names an entity type, defined in the policy store's sc
 The value of each map entry is an JSON object that describes a token released by an issuer trusted by the organization. This JSON object MUST include the following keys:
 
 `type`:
-: REQUIRED non-empty string. The type of token released by the issuer (e.g., `jwt` for JSON Web Tokens or `custom` for non-JWT tokens).
-TODO: is the `type` free-form or a limited number of values?
+: REQUIRED non-empty string. The type of token released by the issuer. Valid values are `jwt` for JSON Web Tokens or `custom` for non-JWT tokens.
 
 `issuer`:
 : REQUIRED non-empty string. Short human-readable name for the issuer.
@@ -803,38 +802,114 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
 ~~~
 
 ## Trusted Issuer Schema
-TODO: update this schema
+
 ~~~ json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jans.io/cedarling/policy-store/v2/trusted-issuers.schema.json",
+  "title": "Cedarling trusted-issuers.json (policy store format v2)",
+  "description": "Map of Cedar entity type -> token type entry. Not expressible in JSON Schema and checked at load (D1, D4, D5): duplicate keys, one `issuer` = one kind / one `iss` / one key source, same `iss` with different `jwks` across issuers, unique `context.tokens` keys (case-insensitive issuer prefix).",
   "type": "object",
-  "required": ["id", "name", "configuration_endpoint"],
-  "properties": {
-    "id": { "type": "string", "format": "uri"},
-    "name": { "type": "string", "minLength": 1 },
-    "description": { "type": "string" },
-    "configuration_endpoint": { "type": "string", "format": "uri" },
-    "token_metadata": {
+  "propertyNames": { "$ref": "#/$defs/entityTypeName" },
+  "additionalProperties": { "$ref": "#/$defs/entry" },
+  "$defs": {
+    "identifier": {
+      "description": "Single Cedar identifier.",
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "entityTypeName": {
+      "description": "Cedar entity type, equal to request `TokenInput.mapping`. Last segment is the type part of the `context.tokens` key. Final validity is checked by cedar_policy::EntityTypeName (reserved words etc.).",
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z_][A-Za-z0-9_]*)*$"
+    },
+    "issuer": {
+      "$ref": "#/$defs/identifier",
+      "description": "Issuer identity. Policy-visible: namespace of `{issuer}::TrustedIssuer` and, lowercased, prefix of the `context.tokens` key."
+    },
+    "requiredClaims": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "default": []
+    },
+    "entry": {
       "type": "object",
-      "patternProperties": {
-        "^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z_][A-Za-z0-9_]*)*$": {
-          "type": "object",
-          "required": ["required_claims"],
-          "properties": {
-            "required_claims": {
-              "type": "array",
-              "items": { "type": "string", "minLength": 1 },
-              "uniqueItems": true
-            }
-          },
-          "additionalProperties": true
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["jwt", "custom"] }
+      },
+      "oneOf": [
+        { "$ref": "#/$defs/jwtEntry" },
+        { "$ref": "#/$defs/customEntry" }
+      ]
+    },
+    "jwtEntry": {
+      "type": "object",
+      "required": ["type", "issuer", "configuration_endpoints"],
+      "properties": {
+        "type": { "const": "jwt" },
+        "issuer": { "$ref": "#/$defs/issuer" },
+        "configuration_endpoints": { "$ref": "#/$defs/keySource" },
+        "token_id": {
+          "description": "Claim used as the token id.",
+          "type": "string",
+          "minLength": 1,
+          "default": "jti"
+        },
+        "required_claims": {
+          "$ref": "#/$defs/requiredClaims",
+          "description": "Presence + RFC 7519 value validation."
         }
       },
       "additionalProperties": false
+    },
+    "customEntry": {
+      "type": "object",
+      "required": ["type", "issuer"],
+      "properties": {
+        "type": { "const": "custom" },
+        "issuer": { "$ref": "#/$defs/issuer" },
+        "required_claims": {
+          "$ref": "#/$defs/requiredClaims",
+          "description": "Presence in processor output."
+        }
+      },
+      "additionalProperties": false
+    },
+    "keySource": {
+      "description": "Exactly one form (D6).",
+      "oneOf": [
+        {
+          "title": "Discovery",
+          "description": "Expected `iss` = this URL minus `/.well-known/openid-configuration`; keys from discovered `jwks_uri`.",
+          "type": "object",
+          "required": ["configuration"],
+          "properties": {
+            "configuration": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://[^?#]+/\\.well-known/openid-configuration$"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "title": "Static",
+          "description": "No discovery; keys from `jwks`, expected `iss` given explicitly.",
+          "type": "object",
+          "required": ["jwks", "iss"],
+          "properties": {
+            "jwks": { "type": "string", "format": "uri" },
+            "iss": { "type": "string", "format": "uri" }
+          },
+          "additionalProperties": false
+        }
+      ]
     }
-  },
-  "additionalProperties": true
+  }
 }
+
 ~~~
 
 ## Entity File Schema
