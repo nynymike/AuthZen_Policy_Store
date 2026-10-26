@@ -38,12 +38,13 @@ contributor:
 normative:
  RFC8259:
  RFC7519:
- RFC8615:
  RFC2119:
  RFC7578:
  RFC8785:
  RFC7515:
  RFC7518:
+ RFC3986:
+ RFC3339:
 
 informative:
  CEDAR:
@@ -150,7 +151,7 @@ Token Processor:
 
 ## Policy store API
 
-The policy store API defines a single POST‑only HTTP API endpoint that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. The policy store API specifies the `/access/v1/policy-store` endpoint, which MUST be implemented by any PDP that conforms to this specification. This endpoint enables authorized PDP administrators or a PAP system to upload updated versions of the policy stores to the PDP. The API does not expose HTTP methods that allow updates or deletion of the existing policy stores.
+The policy store API defines a single HTTP API endpoint that supports two operations: POST, which uploads a **`.cjar`** (Constraint JAR) file containing a policy store, and GET, which reads information about policy store releases accepted by the PDP. The policy store API specifies the `/access/v1/policy-store` endpoint, which MUST be implemented by any PDP that conforms to this specification. This endpoint enables authorized PDP administrators or a PAP system to upload updated versions of the policy stores to the PDP. The API does not expose HTTP methods that allow updates or deletion of the existing policy stores.
 
 ## Policy store
 
@@ -162,7 +163,8 @@ A **policy store** bundles together the artifacts that a PDP needs to evaluate a
 * Optional policy templates (`templates/`)
 * Optional default entities (`entities/`)
 * Optional trusted issuer configuration (`trusted-issuers.json`)
-* Optional package integrity inventory and signatures (`integrity.json` and `signatures.json`), used together as defined in {{package-integrity}}
+* Required package integrity inventory (`integrity.json`) as defined in {{package-integrity}}
+* Optional provenance signatures (`signatures.json`) as defined in {{provenance-profile}}
 
 This document does not define the syntax and semantics of policy documents, schema files, or entity types. These are defined by the declared policy language. This specification defines the container layout, metadata, and interchange formats only.
 
@@ -177,7 +179,7 @@ The Policy Store API defines the `/access/v1/policy-store` endpoint for uploadin
 ## Usage
 
 - Conforming PDPs MUST implement the `/access/v1/policy-store` endpoint.
-- A policy administrator or a PAP should use this PDP endpoint to upload the policy store (cjar) to the PDP.
+- A policy administrator or a PAP should use this PDP endpoint to upload the policy store (cjar) to the PDP, and to read information about accepted releases.
 - Before uploading the policy store to the PDP, the policy administrator MUST ensure the validity of the policy store and correct version management.
 - PDP implementations MUST NOT implement policy store lifecycle management capability using this endpoint.
 
@@ -187,7 +189,7 @@ Separation of responsibilities between policy store governance and distribution 
 
 ## API Request {#api-request}
 
-The **`/access/v1/policy-store`** endpoint is a POST-only HTTP API that accepts a **`.cjar`** (Constraint JAR) file containing a policy store. The request body MUST be a `multipart/form-data` upload with the following part:
+A POST request to the **`/access/v1/policy-store`** endpoint uploads a **`.cjar`** (Constraint JAR) file containing a policy store. The request body MUST be a `multipart/form-data` upload with the following part:
 
 * **file**: The `.cjar` archive. 
 
@@ -216,26 +218,121 @@ Refer to {{transport}} for more details.
 
 ## API Response {#api-response}
 
-The server validates the uploaded file and metadata. On success, it stores the file and returns **201 Created** with a JSON body containing the assigned identifier. On validation failure, it returns **400 Bad Request** with an error description.
+The server validates the uploaded file and metadata, and computes the `package_digest` ({{package-integrity}}). The response depends on whether the tuple (`policy_store.id`, `policy_store.version`, `policy_store.release_id`) has already been recorded ({{loading-activation-rollback}}):
+
+| Condition | Status code |
+| :--- | :--- |
+| The tuple is new and the policy store is valid. The PDP stores the release. | 201 Created |
+| The tuple is already recorded with the same `package_digest`. The upload is idempotent and nothing new is stored. | 200 OK |
+| The tuple is already recorded with a different `package_digest`. | 409 Conflict |
+| The policy store fails validation. | 400 Bad Request |
+{: title="POST response status codes"}
+
+A 201 or 200 response carries a JSON body with the following members:
+
+`id`:
+: The `policy_store.id` from the verified `metadata.json`.
+
+`version`:
+: The `policy_store.version` from the verified `metadata.json`.
+
+`release_id`:
+: The `policy_store.release_id` from the verified `metadata.json`.
+
+`package_digest`:
+: The computed package digest.
 
 **Example Response (Success)**:
 
 ~~~json
 {
-  "id": "store-12345",
-  "message": "Policy store uploaded successfully."
+  "id": "https://acme.com/apps/analytics/policystore/",
+  "version": "1.2.0",
+  "release_id": "2025-01-15-main-a1b2c3",
+  "package_digest": "sha256:7d3e9f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e"
 }
 ~~~
 
 **Example Response (Error)**:
 
-~~~json
+~~~http
+HTTP/1.1 409 Conflict
+Content-Type: application/json
+
 {
-  "error": "Version conflict: policy_store.version already recorded with a different package_digest."
+  "error": "Release conflict: (policy_store.id, policy_store.version, policy_store.release_id) already recorded with a different package_digest."
 }
 ~~~
 
 Refer to {{transport}} for more details.
+
+## Reading Policy Store Releases {#api-get}
+
+A GET request to the **`/access/v1/policy-store`** endpoint returns the releases that the PDP has accepted for a policy store. Policy store identifiers are URIs, so they MUST be passed as query parameters and not as path segments. The request uses the following query parameters:
+
+`id`:
+: REQUIRED. The `policy_store.id`, percent-encoded as a query parameter value.
+
+`version`:
+: REQUIRED. The `policy_store.version`.
+
+`release_id`:
+: OPTIONAL. The `policy_store.release_id`. When present, the response contains at most one release.
+
+**Example Request**:
+
+~~~http
+GET /access/v1/policy-store?id=https%3A%2F%2Facme.com%2Fapps%2Fanalytics%2Fpolicystore%2F&version=1.2.0 HTTP/1.1
+Host: pdp.example.com
+Authorization: Bearer mF_9.B5f-4.1JqM
+~~~
+
+On success, the PDP returns **200 OK** with a JSON object containing a `releases` array. Each element describes one accepted release with the following members:
+
+`id`:
+: REQUIRED. The `policy_store.id`.
+
+`version`:
+: REQUIRED. The `policy_store.version`.
+
+`release_id`:
+: REQUIRED. The `policy_store.release_id`.
+
+`package_digest`:
+: REQUIRED. The package digest recorded for the release.
+
+`provenance_verified`:
+: REQUIRED boolean. `true` when the release was accepted with a verified Provenance Profile ({{provenance-profile}}), otherwise `false`.
+
+`active`:
+: OPTIONAL boolean. `true` when the release is the active snapshot that the PDP evaluates against. Selection and activation of a release are PDP concerns; a PDP that has no such concept omits this member.
+
+If no accepted release matches the query, the PDP returns **404 Not Found**.
+
+**Example Response**:
+
+~~~json
+{
+  "releases": [
+    {
+      "id": "https://acme.com/apps/analytics/policystore/",
+      "version": "1.2.0",
+      "release_id": "2025-01-15-main-a1b2c3",
+      "package_digest": "sha256:7d3e9f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e",
+      "provenance_verified": true,
+      "active": true
+    },
+    {
+      "id": "https://acme.com/apps/analytics/policystore/",
+      "version": "1.2.0",
+      "release_id": "2025-01-16-main-d4e5f6",
+      "package_digest": "sha256:1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d",
+      "provenance_verified": true,
+      "active": false
+    }
+  ]
+}
+~~~
 
 # Policy Store Directory Structure
 
@@ -244,8 +341,8 @@ The root of a policy store (directory or archive) is referred to as the **policy
 ~~~ ascii-art
 policy-store-root/
 ├── metadata.json
-├── integrity.json      (optional profile; requires signatures.json)
-├── signatures.json     (optional profile; requires integrity.json)
+├── integrity.json
+├── signatures.json     (optional; Provenance Profile requirement)
 ├── policies/
 │   └── (one policy document per file)
 ├── schema/             (optional)
@@ -264,6 +361,9 @@ policy-store-root/
 `metadata.json`:
 : REQUIRED at the policy store root. Contains policy store metadata as defined in Metadata ({{metadata}}).
 
+`integrity.json`:
+: REQUIRED at the policy store root, in both the Directory Format and the Archive Format. Contains the package integrity inventory as defined in Package Integrity ({{package-integrity}}).
+
 `policies/`:
 : REQUIRED directory. Contains one or more policy files. Each file MUST contain exactly one policy document in a format accepted by the declared policy language.
 
@@ -280,6 +380,9 @@ policy-store-root/
 
 `trusted-issuers.json`:
 : OPTIONAL. Contains trusted issuer configuration as defined in Trusted Issuers ({{trusted-issuers}}).
+
+`signatures.json`:
+: OPTIONAL. Contains provenance and approval signatures as defined in Provenance Profile ({{provenance-profile}}).
 
 # File Naming and Content Requirements
 
@@ -353,12 +456,12 @@ The top-level JSON object MUST contain the following keys:
 
 | Key | Description |
 | :--- | :--- |
-| `id` | REQUIRED string. A unique identifier for the policy store. It MUST be a URI conforming to RFC 3986 and MUST uniquely identify the policy store. |
+| `id` | REQUIRED string. A unique identifier for the policy store. It MUST be a URI conforming to {{RFC3986}}, either a URL (for example, `https://acme.com/apps/analytics/policystore/`) or a URN (for example, `urn:acme:policystore:analytics`), and MUST uniquely identify the policy store. Values are compared by exact string match. |
 | `name` | REQUIRED string. A human-readable name for the policy store. |
 | `description` | OPTIONAL string. A human-readable description. |
 | `version` | REQUIRED non-empty string. A publisher-assigned version label for the release (for example, `"1.2.0"`), scoped to `policy_store.id`. The version is a human-readable label; it is not an exact content identity. The `package_digest` ({{package-integrity}}) distinguishes two packages that are incorrectly given the same version. See {{loading-activation-rollback}} for the constraint on reusing a version with different content. |
-| `release_id` | REQUIRED when version labels can be reused across environments or branches; otherwise OPTIONAL. A publisher-assigned identifier that distinguishes releases whose version labels collide. Its scope is the pair (`policy_store.id`, `release_id`); it need not be globally unique. |
-| `created_date` | OPTIONAL string. ISO 8601 date-time when the policy store was created. |
+| `release_id` | REQUIRED non-empty string. A publisher-assigned identifier that distinguishes releases of the same version, so that a publisher can iterate on a version without changing its label. It MUST be unique within the pair (`policy_store.id`, `policy_store.version`); it need not be globally unique. The tuple (`policy_store.id`, `policy_store.version`, `policy_store.release_id`) identifies a release. |
+| `created_date` | OPTIONAL string. Date-time when the policy store was created, in the `date-time` format of {{RFC3339}}. |
 {: title="Keys of the policy_store object"}
 
 Implementations MUST NOT add additional top-level keys to `metadata.json` unless documented by a future revision of this specification. The `policy_store` object MUST NOT contain keys other than those defined here unless documented by a future revision.
@@ -380,7 +483,7 @@ Implementations MUST NOT add additional top-level keys to `metadata.json` unless
   "policy_language": "cedar",
   "policy_language_version": "4.4.0",
   "policy_store": {
-    "id": "http://acme.com/apps/analytics/policystore/",
+    "id": "https://acme.com/apps/analytics/policystore/",
     "name": "Acme Analytics Web Application",
     "description": "Policies for the analytics web application.",
     "version": "1.2.0",
@@ -398,7 +501,7 @@ Implementations MUST NOT add additional top-level keys to `metadata.json` unless
 
 # Trusted Issuers {#trusted-issuers}
 
-`trusted-issuers.json` configuration file describes tokens from organization's trusted issuers. PDP MAY accept these tokens as evidence during policy evaluation. This enables PDPs to validate JSON Web Tokens ({{RFC7519}}) and processs custom tokens to subsequently map them to principal or entity types in the policy store's schema.
+`trusted-issuers.json` configuration file describes tokens from organization's trusted issuers. PDP MAY accept these tokens as evidence during policy evaluation. This enables PDPs to validate JSON Web Tokens ({{RFC7519}}) and process custom tokens to subsequently map them to principal or entity types in the policy store's schema.
 
 ## Structure
 
@@ -406,16 +509,23 @@ Implementations MUST NOT add additional top-level keys to `metadata.json` unless
 
 The key of each map entry names an entity type, defined in the policy store's schema, that this token is materialized as (for example, `Acme::Access_token` in Cedar, or a Cerbos principal schema reference). 
 
-The value of each map entry is an JSON object that describes a token released by an issuer trusted by the organization. This JSON object MUST include the following keys:
+A schema entity type name MUST NOT be declared by more than one map entry within `trusted-issuers.json`. A policy store that violates this constraint is invalid.
 
-`type`:
-: REQUIRED non-empty string. The type of token released by the issuer. Valid values are `jwt` for JSON Web Tokens or `custom` for non-JWT tokens.
+The value of each map entry is a JSON object that describes a token released by an issuer trusted by the organization. This JSON object MUST include the following keys:
+
+`typ`:
+: REQUIRED non-empty string. The type of token released by the issuer. Valid values are `jwt` for JSON Web Tokens or `custom` for non-JWT tokens. Values are compared case-insensitively and producers SHOULD emit lowercase values. This member should not be confused with the JOSE header parameter `typ` ({{RFC7515}}).
 
 `issuer`:
-: REQUIRED non-empty string. Short human-readable name for the issuer.
+: REQUIRED string. An identifier for the issuer that matches the regular expression `^[A-Za-z_][A-Za-z0-9_]*$`.
 
 `configuration_endpoints`:
-: OPTIONAL object. A JSON map of endpoint names as keys and their corresponding URIs {{RFC8615}} as values.
+: REQUIRED object when `typ` is `jwt`. Describes where the PDP obtains the issuer's signing keys and which `iss` claim value it expects. The object MUST use exactly one of the following forms:
+
+  * Discovery form: the object contains only `configuration`, the URI ({{RFC3986}}) of the issuer's OpenID Connect discovery document, ending in `/.well-known/openid-configuration`. The PDP obtains signing keys from the `jwks_uri` in that document. The expected `iss` claim value is the `configuration` URI with the `/.well-known/openid-configuration` suffix removed.
+  * Static form: the object contains `jwks`, the URI ({{RFC3986}}) of the issuer's JSON Web Key Set, and `iss`, the issuer's `https` URL (for example, `https://idp.acme.com`). Both members are REQUIRED. The PDP obtains signing keys from `jwks` and expects the token's `iss` claim to equal `iss`.
+
+  In both forms, the PDP compares the expected value with the token's `iss` claim by exact string comparison.
 
 `token_id`:
 : OPTIONAL string. The claim name that uniquely identifies the token (e.g., `jti` for JWTs). 
@@ -430,8 +540,8 @@ Organizations MAY define additional fields within entity type entries or at the 
 ~~~ json
 {
   "Acme::Access_token": {
-    "type": "jwt",
-    "issuer": "Acme Incorporated",
+    "typ": "jwt",
+    "issuer": "Acme",
     "configuration_endpoints": {
       "configuration": "https://idp.acme.com/.well-known/openid-configuration"
     },
@@ -439,8 +549,8 @@ Organizations MAY define additional fields within entity type entries or at the 
     "required_claims": ["jti", "iss", "aud", "sub", "exp"]
   },
   "Lapis::personal_token": {
-    "type": "custom",
-    "issuer": "Lapis Incorporated"
+    "typ": "custom",
+    "issuer": "Lapis"
   }
 }
 ~~~
@@ -448,16 +558,14 @@ Organizations MAY define additional fields within entity type entries or at the 
 
 ## Custom token type {#custom-token-type}
 
-`custom` token type describes a token that the PDP can not validate using JSON Web Token ({{RFC7519}}) mechanisms. These tokens require specialized processing. These tokens include API keys, opaque session handles, vendor-specific or legacy token formats, and tokens that use encryption or signature algorithms the PDP does not implement natively.
+`custom` token type describes a token that the PDP cannot validate using JSON Web Token ({{RFC7519}}) mechanisms. These tokens require specialized processing. These tokens include API keys, opaque session handles, vendor-specific or legacy token formats, and tokens that use encryption or signature algorithms the PDP does not implement natively.
 
 Like all other map entries in `trusted-issuers.json`, a map entry for a custom token describes the schema entity types those tokens should be mapped to during policy evaluation. A PDP validates a custom token using a token processor. A token processor contains the logic to interpret and validate custom tokens. A token processor component may be owned by the organization or the PDP.
 
 Consistent with the scope of this specification, this section defines the configuration for custom token types only. It does not define how a PDP validates a custom token, how a
 token processor is implemented or registered, or how a custom token is materialized as an entity.
 
-Unlike a JWT token, a custom token has no `configuration_endpoint`. The token validation logic is outside the scope of this specification and may be part of the token processor implementation.
-
-A schema entity type name MUST NOT be declared by more than one map entry within `trusted-issuers.json`. A policy store that violates this constraint is invalid.
+Unlike a JWT token, a custom token has no `configuration_endpoints`. The token validation logic is outside the scope of this specification and may be part of the token processor implementation.
 
 ### PDP Support
 
@@ -474,7 +582,7 @@ The Archive Format packages the Directory Format as a ZIP archive (Constraint JA
 * The archive MUST use the ZIP format and `.cjar` file extension.
 * Paths inside the archive MUST match the Directory Format layout relative to the policy store root.
 * The archive MUST NOT require extraction to a specific absolute path; relative paths MUST be preserved.
-* Archive file names SHOULD follow the pattern `{policy-store-name}-{version}.cjar` where `version` matches `policy_store.version` in `metadata.json`. The file name is a convenience only; it is not authoritative and MUST NOT override `policy_store.version`, `policy_store.release_id`, or the `package_digest`.
+* Archive file names SHOULD follow the pattern `{policy-store-name}-{version}-{release_id}.cjar` where `version` matches `policy_store.version` and `release_id` matches `policy_store.release_id` in `metadata.json`. The file name is a convenience only; it is not authoritative and MUST NOT override `policy_store.version`, `policy_store.release_id`, or the `package_digest`.
 
 PDPs loading `.cjar` files SHOULD validate structure and required files before evaluation.
 
@@ -487,15 +595,15 @@ PDPs and tools that load policy stores SHOULD perform the following steps:
 3. Parse and validate `metadata.json`.
 4. Confirm the implementation supports the declared `policy_store_spec_version`. A PDP MUST reject a policy store whose `policy_store_spec_version` it does not implement.
 5. Confirm the implementation supports the declared `policy_language` and `policy_language_version`, or reject the store.
-6. Apply the deployment's integrity requirement and, when present or required, verify the Package Integrity Profile ({{package-integrity}}). When the profile is in effect, the loader MUST confirm that `metadata.json` is present in the signed inventory and that its verified bytes match before treating any metadata value as authenticated. Complete verification before loading artifacts into the policy engine.
+6. Verify `integrity.json` and compute the `package_digest` as defined in Package Integrity ({{package-integrity}}). The loader MUST confirm that `metadata.json` is present in the inventory and that its bytes match before using any metadata value. Apply the deployment's provenance requirement and, when `signatures.json` is present or provenance is required, verify the Provenance Profile ({{provenance-profile}}). Complete verification before loading artifacts into the policy engine.
 7. If present, load `schema/`; then load policies and optional templates, entities, trusted issuers, and custom issuers according to policy engine rules.
 8. Verify policy engine-specific requirements if any (such as unique policy identifiers).
-9. Verify that no schema entity type is declared `trusted-issuers.json`
+9. Verify that no schema entity type is declared by more than one map entry in `trusted-issuers.json`.
 10. If `trusted-issuers.json` defines any `custom` type tokens ({{custom-token-type}}), then determine whether the implementation can process each declared entity type.
 
 Failure at any REQUIRED validation step MUST result in rejecting the policy store for evaluation. Rejection MUST leave the previously active store unchanged.
 
-On acceptance, and again on activation, the PDP MUST record the tuple (`policy_store.id`, `policy_store.version`, `package_digest`). When the Package Integrity Profile is in effect, these values MUST be taken from the verified `metadata.json` bytes and the computed `package_digest`. The conflict and activation constraints in {{loading-activation-rollback}} apply to these recorded tuples.
+On acceptance, and again on activation, the PDP MUST record the tuple (`policy_store.id`, `policy_store.version`, `policy_store.release_id`, `package_digest`). These values MUST be taken from the verified `metadata.json` bytes and the computed `package_digest`. The conflict and activation constraints in {{loading-activation-rollback}} apply to these recorded tuples.
 
 # Safe Package Paths {#safe-package-paths}
 
@@ -507,11 +615,9 @@ Only regular files and directories are permitted. Symbolic links, hard links, de
 
 Verification and subsequent loading MUST use the same immutable snapshot of file bytes. Verifying a directory and later reopening mutable paths is insufficient. Archive metadata, executable bits, timestamps, and entry order MUST NOT affect policy evaluation.
 
-# Package Integrity Profile {#package-integrity}
+# Package Integrity {#package-integrity}
 
-Editor's note: This section proposes an optional profile for working-group review. The profile identifier and signature choices below are provisional. They do not indicate adoption or implementation conformance.
-
-The profile adds two reserved root files: `integrity.json` and `signatures.json`. A deployment MAY accept stores without this profile, but MUST configure that decision outside the incoming package. If either reserved file is present, both MUST be present and the complete profile MUST be verified or the store rejected. A loader that does not support the profile MUST reject these stores. An integrity-required deployment MUST reject a store with either file missing; it MUST NOT retry it as an unsigned store.
+Every policy store MUST contain the reserved root file `integrity.json`, which inventories the files of the store. A PDP MUST compute the `package_digest` of every policy store it loads, whether or not the store is signed. The optional Provenance Profile ({{provenance-profile}}) adds signatures over the `package_digest`.
 
 ## Inventory and content identity
 
@@ -519,8 +625,10 @@ The profile adds two reserved root files: `integrity.json` and `signatures.json`
 
 | Member | Requirement |
 | :--- | :--- |
-| `profile` | REQUIRED string, exactly `authzen-policy-store-integrity-1`. |
+| `policy_store_spec_version` | REQUIRED string. The version of this specification that the inventory conforms to. It MUST equal `policy_store_spec_version` in `metadata.json`. |
 | `files` | REQUIRED object mapping relative file paths to artifact descriptors. |
+
+A loader selects the inventory and digest rules from `policy_store_spec_version` in `integrity.json`, because `metadata.json` is not yet verified at that point. A loader MUST reject a value it does not implement. After verifying `metadata.json`, the loader MUST reject the store if the two `policy_store_spec_version` values differ.
 
 Each descriptor MUST contain exactly these members:
 
@@ -530,13 +638,37 @@ Each descriptor MUST contain exactly these members:
 | `media_type` | REQUIRED non-empty media type string describing the artifact representation. |
 | `critical` | REQUIRED boolean indicating that the loader must understand and process the artifact to accept the store. |
 
-`files` MUST inventory every regular file, including `metadata.json`, except the two reserved integrity files. It MUST NOT inventory directories or either reserved file. Missing files, unlisted files, duplicate paths, and digest mismatches MUST cause rejection. The inventory is subject to the same path rules as the package. It does not authorize additional directories or override the base format's content requirements.
+`files` MUST inventory every regular file, including `metadata.json`, except `integrity.json` and `signatures.json`. It MUST NOT inventory directories or either of those two files. Missing files, unlisted files, duplicate paths, and digest mismatches MUST cause rejection. The inventory is subject to the same path rules as the package. It does not authorize additional directories or override the base format's content requirements.
 
 `metadata.json` MUST have media type `application/json` and `critical: true`. All policy, schema, template, entity, and issuer artifacts used for evaluation MUST be critical. A loader MUST reject a critical artifact whose representation or role it cannot process. Non-critical artifacts MAY be ignored semantically, but their bytes MUST still be verified. `application/octet-stream` describes opaque bytes; it does not establish that a loader understands them. Engine-specific artifacts require a separately agreed extension to the layout and semantics.
 
-The metadata file binds the store identifier, policy language and version, and governance claims into the inventory. JSON artifact bytes MUST NOT be reserialized, whitespace-normalized, or line-ending-normalized before hashing. The package digest is `sha256:` followed by the lowercase hexadecimal SHA-256 digest of the UTF-8 JCS serialization of the entire `integrity.json` object ({{RFC8785}}). Unknown profile identifiers or inventory members MUST be rejected. This version has no implicit extension or fallback mechanism.
+The metadata file binds the store identifier, version, release identifier, policy language and version, and governance claims into the inventory. JSON artifact bytes MUST NOT be reserialized, whitespace-normalized, or line-ending-normalized before hashing. The package digest is `sha256:` followed by the lowercase hexadecimal SHA-256 digest of the UTF-8 JCS serialization of the entire `integrity.json` object ({{RFC8785}}). Unknown inventory members MUST be rejected. This version has no implicit extension or fallback mechanism.
 
-The digest identifies the inventoried content and descriptors. ZIP compression, ZIP entry order, and JSON object-member ordering in `integrity.json` do not change it. Changing an artifact's bytes, path, media type, or criticality does. Signatures are excluded to avoid a circular digest and permit approvals to be added without changing content identity. A digest alone does not authenticate its producer.
+The digest identifies the inventoried content and descriptors. ZIP compression, ZIP entry order, and JSON object-member ordering in `integrity.json` do not change it. Changing an artifact's bytes, path, media type, or criticality does. Signatures ({{provenance-profile}}) are excluded to avoid a circular digest and permit approvals to be added without changing content identity. A digest alone does not authenticate its producer.
+
+Because `metadata.json` is inventoried, two releases that differ in `policy_store.version` or `policy_store.release_id` always have different package digests. Identical content therefore cannot be re-tagged as a new release without changing its digest.
+
+## Loading, activation, and rollback {#loading-activation-rollback}
+
+After safe path and structural validation, a loader MUST verify the complete inventory and calculate the package digest before any policy-engine evaluation or issuer processing. When the Provenance Profile is in effect, the loader MUST also enforce signature and trust policy ({{provenance-profile}}) at this point. It MUST confirm that `metadata.json` is in the inventory and use its verified bytes as the source of `policy_store.id`, `policy_store.version`, and `policy_store.release_id`. It MUST then apply the base format's metadata, language, and engine validation rules to the same snapshot. Successful integrity or signature verification does not establish policy correctness or safe issuer configuration.
+
+On acceptance, the PDP MUST record the tuple (`policy_store.id`, `policy_store.version`, `policy_store.release_id`, `package_digest`). It MUST reject an upload whose (`policy_store.id`, `policy_store.version`, `policy_store.release_id`) is already recorded with a different `package_digest`, unless an explicit administrative correction process is defined and authorized for that deployment. An upload that repeats an already recorded tuple with the same `package_digest` MUST be treated as idempotent. On activation, the PDP MUST record the same tuple for the release it makes active.
+
+Selection and activation of a release are PDP concerns and out of scope for this specification. Publishing, fetching, uploading, approving, and activating are separate permissions. The upload endpoint remains subject to administrative authentication and authorization; accepting a package MUST NOT grant its producer permission to activate it. This specification adds no activation, rollback, or revocation API and no ability for a resource to push policy into a PDP.
+
+An intentional rollback, which activates an earlier accepted release, MUST be authorized through the deployment's administrative process and logged with the selected digest.
+
+### Active snapshot and rollout
+
+Acceptance and activation are distinct. Accepting a release records and stores it; activation makes one accepted release the active snapshot that the policy engine evaluates against. Uploading a newer release does not change the active snapshot until that release is activated.
+
+For the purpose of decision evidence, the content a PDP "used" for a decision is the release of its active loaded snapshot at decision time. During a rollout, when a newer release has been accepted or uploaded but not yet activated, the PDP MUST report the `policy_store.version` and `package_digest` of the currently active snapshot, not those of the newer, not-yet-activated release. A single decision MUST be evaluated entirely against one active snapshot.
+
+# Provenance Profile {#provenance-profile}
+
+Editor's note: This section proposes an optional profile for working-group review. The profile identifier and signature choices below are provisional. They do not indicate adoption or implementation conformance.
+
+The profile adds one reserved root file, `signatures.json`, which carries signatures over the `package_digest` ({{package-integrity}}). A deployment MAY accept stores without this profile, but MUST configure that decision outside the incoming package. If `signatures.json` is present, the complete profile MUST be verified or the store rejected. A loader that does not support the profile MUST reject stores that contain `signatures.json`. A provenance-required deployment MUST reject a store whose `signatures.json` is missing; it MUST NOT retry it as an unsigned store.
 
 ## Provenance and approvals
 
@@ -544,8 +676,8 @@ The digest identifies the inventoried content and descriptors. ZIP compression, 
 
 | Member | Requirement |
 | :--- | :--- |
-| `profile` | Exactly `authzen-policy-store-integrity-1`. |
-| `package_digest` | The package digest computed above. |
+| `profile` | Exactly `authzen-policy-store-provenance-1`. |
+| `package_digest` | The package digest computed as defined in {{package-integrity}}. |
 | `purpose` | Either `provenance` or `approval`. |
 
 Each protected header MUST contain exactly `alg` and `kid`. The latter is a non-empty identifier resolved against deployment-configured verification keys. This profile uses standard base64url-encoded JWS payloads; detached or unencoded payloads are not supported. Implementations MUST support ES256 as defined in {{RFC7518}}. Other digital-signature algorithms MAY be permitted by deployment policy. The `none` algorithm and shared-secret MAC algorithms MUST NOT be accepted.
@@ -558,21 +690,11 @@ The `governance.owner` and `governance.author` URNs remain claims. A verified si
 
 Trust anchors, permitted algorithms, approval thresholds, key validity periods, and revocation status MUST be managed outside the incoming package. Key rotation MAY allow a configured overlap, but a package cannot introduce its own replacement trusted key. A revoked key MUST NOT count toward new acceptance. Previously activated content requires a deployment decision when its signer is revoked; this format does not provide a revocation service. If required current trust information is unavailable, the loader MUST reject new activation.
 
-## Loading, activation, and rollback {#loading-activation-rollback}
+## Freshness and rollback
 
-After safe path and structural validation, a loader MUST verify the complete inventory, calculate the package digest, and enforce signature and trust policy before any policy-engine evaluation or issuer processing. It MUST confirm that `metadata.json` is in the signed inventory and use its verified bytes as the source of `policy_store.id`, `policy_store.version`, and `policy_store.release_id`. It MUST then apply the base format's metadata, language, and engine validation rules to the same snapshot. Successful signature verification does not establish policy correctness or safe issuer configuration.
+When the profile is in effect, the loader MUST confirm that `metadata.json` is in the inventory bound by the verified signatures before treating any metadata value as authenticated.
 
-On acceptance, the PDP MUST record the tuple (`policy_store.id`, `policy_store.version`, `package_digest`), together with `release_id` when present. It MUST reject reuse of the same (`policy_store.id`, `policy_store.version`) with a `package_digest` that differs from the one previously recorded for that pair, unless an explicit administrative correction process is defined and authorized for that deployment. An upload that repeats an already recorded (`policy_store.id`, `policy_store.version`, `package_digest`) MAY be treated as idempotent. On activation, the PDP MUST record the same tuple for the release it makes active.
-
-Publishing, fetching, uploading, approving, and activating are separate permissions. The existing upload endpoint remains subject to administrative authentication and authorization; accepting a package MUST NOT grant its producer permission to activate it. This profile adds no activation, rollback, or revocation API and no ability for a resource to push policy into a PDP.
-
-A valid old signature remains cryptographically valid. Deployments MUST apply an external freshness or rollback policy for the expected store and record the accepted digest. A signed version string or creation date alone is insufficient. An intentional rollback MUST be authorized through the deployment's administrative process and logged with the selected digest. A missing signature, unsupported profile, or failed verification MUST NOT cause a downgrade to unsigned acceptance.
-
-### Active snapshot and rollout
-
-Acceptance and activation are distinct. Accepting a release records and stores it; activation makes one accepted release the active snapshot that the policy engine evaluates against. Uploading a newer release does not change the active snapshot until that release is activated.
-
-For the purpose of decision evidence, the content a PDP "used" for a decision is the release of its active loaded snapshot at decision time. During a rollout, when a newer release has been accepted or uploaded but not yet activated, the PDP MUST report the `policy_store.version` and `package_digest` of the currently active snapshot, not those of the newer, not-yet-activated release. A single decision MUST be evaluated entirely against one active snapshot.
+A valid old signature remains cryptographically valid. Deployments MUST apply an external freshness or rollback policy for the expected store and record the accepted digest. A signed version string or creation date alone is insufficient. A missing signature, unsupported profile, or failed verification MUST NOT cause a downgrade to unsigned acceptance.
 
 ## Validation cases for implementers
 
@@ -586,24 +708,27 @@ The following are test requirements, not a claim that a conformance suite or int
 | Change one policy byte or metadata governance claim | Reject artifact digest mismatch. |
 | Change artifact bytes and update the inventory hash, keeping old signatures | Reject signed package-digest mismatch. |
 | Omit an inventoried file or add an unlisted regular file | Reject inventory mismatch. |
+| Delete `integrity.json` | Reject missing required file. |
 | Use `../outside`, `/absolute`, `C:/outside`, or a backslash path | Reject before extraction. |
 | Repeat a ZIP path, duplicate a JSON member, or introduce a file/directory collision | Reject before ambiguous data is consumed. |
 | Add a link entry or mutate the directory after verification | Reject; never evaluate unverified bytes. |
 | Supply an unsupported critical artifact with otherwise valid signatures | Reject unsupported artifact. |
-| Change the profile identifier, or add an unknown inventory member | Reject unsupported profile or structure. |
+| Change the signature profile identifier, set an unsupported `policy_store_spec_version` in `integrity.json`, or add an unknown inventory member | Reject unsupported profile or structure. |
+| Set `policy_store_spec_version` in `integrity.json` to a value that differs from `metadata.json` | Reject version mismatch. |
 | Alter a signature under a trusted, permitted key | Reject cryptographic verification failure. |
 | Sign only with an unknown or revoked key | Reject unmet provenance or approval policy. |
 | Supply provenance but remove a required approval | Reject unmet approval policy. |
 | Repeat one approval to meet a distinct-approver threshold | Reject unmet threshold. |
-| Delete both integrity files where local policy requires integrity | Reject attempted unsigned downgrade. |
+| Delete `signatures.json` where local policy requires provenance | Reject attempted unsigned downgrade. |
 | Replay an older valid package disallowed by local rollback policy | Reject activation despite valid signatures. |
 | Change metadata to a different store with weaker trust settings | Reject expected-store mismatch. |
-| Re-upload the same (`policy_store.id`, `version`, `package_digest`) | Accept as idempotent; no new content identity. |
-| Reuse the same (`policy_store.id`, `version`) with a different `package_digest`, absent an authorized correction process | Reject version-digest conflict. |
+| Upload a new `release_id` for an already recorded (`policy_store.id`, `version`) | Accept as a new release. |
+| Re-upload the same (`policy_store.id`, `version`, `release_id`, `package_digest`) | Accept as idempotent; no new content identity. |
+| Reuse the same (`policy_store.id`, `version`, `release_id`) with a different `package_digest`, absent an authorized correction process | Reject release-digest conflict. |
 
 ## Questions for working-group review
 
-Before finalizing this profile, the working group needs to agree on the reserved filenames and version identifier, the signature envelope and mandatory algorithm, and the relationship between critical artifact descriptors and future layout extensions. Byte-level positive and negative fixtures and results from independent implementations are still needed. The profile does not claim that the current draft's fixed entity representation is neutral across all policy languages.
+Before finalizing this profile, the working group needs to agree on the reserved filenames and profile identifier, the signature envelope and mandatory algorithm, and the relationship between critical artifact descriptors and future layout extensions. Byte-level positive and negative fixtures and results from independent implementations are still needed. The profile does not claim that the current draft's fixed entity representation is neutral across all policy languages.
 
 # Relationship to AuthZEN
 
@@ -616,7 +741,7 @@ so that:
 
 ## Decision records
 
-A PDP that produces a decision record for an authorization decision MUST include both the `policy_store.version` and the `package_digest` of the active loaded snapshot used to reach that decision. The version records the human-readable release label, and the `package_digest` lets agent evidence verify the exact policy content that was used. When the Package Integrity Profile is not in effect, the PDP MUST record that the active snapshot is unsigned rather than reporting a `package_digest` it cannot substantiate.
+A PDP that produces a decision record for an authorization decision MUST include both the `policy_store.version` and the `package_digest` of the active loaded snapshot used to reach that decision. The version records the human-readable release label, and the `package_digest` lets agent evidence verify the exact policy content that was used. The PDP MUST also record whether the active snapshot was accepted with a verified Provenance Profile ({{provenance-profile}}).
 
 Consistent with {{loading-activation-rollback}}, "the active loaded snapshot used" is the snapshot active at decision time. When a newer release has been uploaded or accepted but not activated, the decision record MUST report the version and digest of the currently active snapshot.
 
@@ -656,16 +781,17 @@ This specification defines an HTTPS binding using JSON serialization which MUST 
 
 ## HTTPS JSON Binding
 
-All API requests to the policy store endpoint MUST be made via an HTTPS POST request.
+All API requests to the policy store endpoint MUST be made via HTTPS, using the POST method to upload a policy store or the GET method to read policy store releases.
 
-Requests MUST include a `Content-Type` header with the value `multipart/form-data` ({{RFC7578}}). The request body MUST conform to the request structure defined in ({{api-request}}).
+POST requests MUST include a `Content-Type` header with the value `multipart/form-data` ({{RFC7578}}). The request body MUST conform to the request structure defined in ({{api-request}}). GET requests carry their parameters in the query string as defined in ({{api-get}}) and have no request body.
 
-| API Endpoint | Default Path | Metadata Parameter | Request Schema | Response Schema |
-| :--- | :--- | :--- | :--- | :--- |
-| Policy Store | /access/v1/policy-store | policy_store_endpoint | {{api-request}} | {{api-response}} |
+| API Endpoint | Method | Default Path | Metadata Parameter | Request Schema | Response Schema |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Policy Store | POST | /access/v1/policy-store | policy_store_endpoint | {{api-request}} | {{api-response}} |
+| Policy Store | GET | /access/v1/policy-store | policy_store_endpoint | {{api-get}} | {{api-get}} |
 
 
-A successful response is an HTTPS response with a status code of 201 Created and a `Content-Type` of `application/json`. The response body MUST be a JSON object that conforms to the structure defined in ({{api-response}}).
+A successful POST response has a status code of 201 Created, or 200 OK for an idempotent re-upload. A successful GET response has a status code of 200 OK. Successful responses have a `Content-Type` of `application/json`, and the response body MUST be a JSON object that conforms to the structure defined in ({{api-response}}) or ({{api-get}}).
 
 The request URL MUST be the value of the `policy_store_endpoint` parameter ({{update-pdp-metadata}}) if provided in the Policy Decision Point metadata. If the parameter is omitted, the URL SHOULD be formed by appending the default path (as defined in the table above) to the PDP’s base URL. PDP's base URL should be obtained from the value of `policy_decision_point` parameter of the Policy Decision Point metadata as defined by AuthZEN Authorization API ({{AUTHZEN-API}}), if available.
 
@@ -678,6 +804,8 @@ Error responses use HTTPS status codes to indicate failures. The PDP MUST return
 | 400 | Bad Request | An error message string or JSON object with error details |
 | 401 | Unauthorized | An error message string |
 | 403 | Forbidden | An error message string |
+| 404 | Not Found | An error message string. Returned by GET when no accepted release matches the query. |
+| 409 | Conflict | A JSON object with error details. Returned by POST when the release tuple is already recorded with a different `package_digest`. |
 | 500 | Internal Error | An error message string |
 
 ### Request Identification
@@ -712,17 +840,17 @@ Policy stores contain authorization rules and may include sensitive configuratio
 
 Deployments SHOULD use signed releases or secure artifact repositories where integrity and provenance are required.
 
-The Package Integrity Profile ({{package-integrity}}) defines content verification and signer authorization for deployments that require it. Safe Package Paths ({{safe-package-paths}}) applies even when that profile is not used. HTTPS and artifact hashes alone do not establish that a producer is authorized to change the active policy store.
+Package Integrity ({{package-integrity}}) defines content verification for every policy store. The Provenance Profile ({{provenance-profile}}) adds signer authorization for deployments that require it. Safe Package Paths ({{safe-package-paths}}) applies to every policy store. HTTPS and artifact hashes alone do not establish that a producer is authorized to change the active policy store.
 
-The `policy_store.version` label is not anti-rollback protection or exact content identity. Audit correctness depends on binding each decision to the `package_digest` of the active snapshot and rejecting reuse of a version with conflicting content ({{loading-activation-rollback}}). Deployments SHOULD retain acceptance, activation, and decision records so that a decision can be traced to the exact policy content that produced it.
+The `policy_store.version` label is not anti-rollback protection or exact content identity. Audit correctness depends on binding each decision to the `package_digest` of the active snapshot and rejecting reuse of a release tuple with conflicting content ({{loading-activation-rollback}}). Deployments SHOULD retain acceptance, activation, and decision records so that a decision can be traced to the exact policy content that produced it.
 
-Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate `configuration_endpoint` URIs and token metadata before trusting tokens in production.
+Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate `configuration_endpoints` URIs and token metadata before trusting tokens in production.
 
 Policy stores SHOULD be treated as part of the trusted computing base for authorization decisions. Loading a policy store from an untrusted source without validation is NOT RECOMMENDED.
 
 ## Custom tokens
 
-Custom type tokens ({{custom-token-type}}) moves credential validation out into a deployment-supplied token processor. The token processor is part of the trusted computing base for authorization decisions.
+Custom type tokens ({{custom-token-type}}) move credential validation out into a deployment-supplied token processor. The token processor is part of the trusted computing base for authorization decisions.
 
 Because a custom type token has no configuration document, there is no standard mechanism for key rotation, token status, or revocation. Deployments that accept custom type tokens MUST provide these controls through the token processor or surrounding infrastructure.
 
@@ -775,7 +903,7 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
     "policy_language_version": { "type": "string", "minLength": 1 },
     "policy_store": {
       "type": "object",
-      "required": ["id", "name", "version"],
+      "required": ["id", "name", "version", "release_id"],
       "properties": {
         "id": { "type": "string", "format": "uri"},
         "name": { "type": "string" },
@@ -835,9 +963,13 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
     },
     "entry": {
       "type": "object",
-      "required": ["type"],
+      "required": ["typ"],
       "properties": {
-        "type": { "enum": ["jwt", "custom"] }
+        "typ": {
+          "description": "case-insensitive token format.",
+          "type": "string",
+          "pattern": "^([Jj][Ww][Tt]|[Cc][Uu][Ss][Tt][Oo][Mm])$"
+        }
       },
       "oneOf": [
         { "$ref": "#/$defs/jwtEntry" },
@@ -846,9 +978,9 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
     },
     "jwtEntry": {
       "type": "object",
-      "required": ["type", "issuer", "configuration_endpoints"],
+      "required": ["typ", "issuer", "configuration_endpoints"],
       "properties": {
-        "type": { "const": "jwt" },
+        "typ": { "type": "string", "pattern": "^[Jj][Ww][Tt]$" },
         "issuer": { "$ref": "#/$defs/issuer" },
         "configuration_endpoints": { "$ref": "#/$defs/keySource" },
         "token_id": {
@@ -866,9 +998,9 @@ The following JSON Schemas illustrate the structure of normative JSON artifacts.
     },
     "customEntry": {
       "type": "object",
-      "required": ["type", "issuer"],
+      "required": ["typ", "issuer"],
       "properties": {
-        "type": { "const": "custom" },
+        "typ": { "type": "string", "pattern": "^[Cc][Uu][Ss][Tt][Oo][Mm]$" },
         "issuer": { "$ref": "#/$defs/issuer" },
         "required_claims": {
           "$ref": "#/$defs/requiredClaims",
@@ -983,7 +1115,7 @@ todo-app-policy-store/
   "policy_language": "cedar",
   "policy_language_version": "4.4.0",
   "policy_store": {
-    "id": "http://acme.com/apps/todo/policystore/",
+    "id": "https://acme.com/apps/todo/policystore/",
     "name": "todo_app_policy_store",
     "version": "1.0.0",
     "release_id": "2025-01-10-main-9f8e7d"
@@ -1033,7 +1165,7 @@ hr-policy-store/
   "policy_language": "cel",
   "policy_language_version": "0.25.0",
   "policy_store": {
-    "id": "http://acme.com/hr/policystore/",
+    "id": "https://acme.com/hr/policystore/",
     "name": "hr_policy_store",
     "version": "2.0.0",
     "release_id": "2025-02-02-release-4c5d6e"
@@ -1070,6 +1202,7 @@ The following topics may be addressed in future revisions:
 * How policy templates are instantiated and linked to policies in multi-file layouts.
 * Expression and validation of cross-policy dependencies.
 * Subdirectory organization conventions under `policies/` per policy language.
+* Support in the discovery form for multi-tenant IdPs whose discovered issuer differs from the discovery URL prefix (for example, Entra ID common); such issuers currently must use the static form.
 
 # Notices
 

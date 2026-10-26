@@ -29,7 +29,7 @@
       </address>
     </author>
 
-    <date year="2026" month="October" day="14"/>
+    <date year="2026" month="October" day="26"/>
 
     
     <workgroup>OpenID AuthZEN</workgroup>
@@ -38,7 +38,7 @@
     <abstract>
 
 
-<?line 80?>
+<?line 81?>
 
 <t>This document defines the AuthZEN Policy Store API and the Policy Store format for distributing authorization policies and their associated evaluation artifacts.</t>
 
@@ -59,7 +59,7 @@
   <middle>
 
 
-<?line 90?>
+<?line 91?>
 
 <section anchor="introduction"><name>Introduction</name>
 
@@ -139,7 +139,7 @@
 
 <section anchor="policy-store-api"><name>Policy store API</name>
 
-<t>The policy store API defines a single POST‑only HTTP API endpoint that accepts a <strong><spanx style="verb">.cjar</spanx></strong> (Constraint JAR) file containing a policy store. The policy store API specifies the <spanx style="verb">/access/v1/policy-store</spanx> endpoint, which MUST be implemented by any PDP that conforms to this specification. This endpoint enables authorized PDP administrators or a PAP system to upload updated versions of the policy stores to the PDP. The API does not expose HTTP methods that allow updates or deletion of the existing policy stores.</t>
+<t>The policy store API defines a single HTTP API endpoint that supports two operations: POST, which uploads a <strong><spanx style="verb">.cjar</spanx></strong> (Constraint JAR) file containing a policy store, and GET, which reads information about policy store releases accepted by the PDP. The policy store API specifies the <spanx style="verb">/access/v1/policy-store</spanx> endpoint, which MUST be implemented by any PDP that conforms to this specification. This endpoint enables authorized PDP administrators or a PAP system to upload updated versions of the policy stores to the PDP. The API does not expose HTTP methods that allow updates or deletion of the existing policy stores.</t>
 
 </section>
 <section anchor="policy-store"><name>Policy store</name>
@@ -153,7 +153,8 @@
   <t>Optional policy templates (<spanx style="verb">templates/</spanx>)</t>
   <t>Optional default entities (<spanx style="verb">entities/</spanx>)</t>
   <t>Optional trusted issuer configuration (<spanx style="verb">trusted-issuers.json</spanx>)</t>
-  <t>Optional package integrity inventory and signatures (<spanx style="verb">integrity.json</spanx> and <spanx style="verb">signatures.json</spanx>), used together as defined in <xref target="package-integrity"/></t>
+  <t>Required package integrity inventory (<spanx style="verb">integrity.json</spanx>) as defined in <xref target="package-integrity"/></t>
+  <t>Optional provenance signatures (<spanx style="verb">signatures.json</spanx>) as defined in <xref target="provenance-profile"/></t>
 </list></t>
 
 <t>This document does not define the syntax and semantics of policy documents, schema files, or entity types. These are defined by the declared policy language. This specification defines the container layout, metadata, and interchange formats only.</t>
@@ -172,7 +173,7 @@
 
 <t><list style="symbols">
   <t>Conforming PDPs MUST implement the <spanx style="verb">/access/v1/policy-store</spanx> endpoint.</t>
-  <t>A policy administrator or a PAP should use this PDP endpoint to upload the policy store (cjar) to the PDP.</t>
+  <t>A policy administrator or a PAP should use this PDP endpoint to upload the policy store (cjar) to the PDP, and to read information about accepted releases.</t>
   <t>Before uploading the policy store to the PDP, the policy administrator MUST ensure the validity of the policy store and correct version management.</t>
   <t>PDP implementations MUST NOT implement policy store lifecycle management capability using this endpoint.</t>
 </list></t>
@@ -185,7 +186,7 @@
 </section>
 <section anchor="api-request"><name>API Request</name>
 
-<t>The <strong><spanx style="verb">/access/v1/policy-store</spanx></strong> endpoint is a POST-only HTTP API that accepts a <strong><spanx style="verb">.cjar</spanx></strong> (Constraint JAR) file containing a policy store. The request body MUST be a <spanx style="verb">multipart/form-data</spanx> upload with the following part:</t>
+<t>A POST request to the <strong><spanx style="verb">/access/v1/policy-store</spanx></strong> endpoint uploads a <strong><spanx style="verb">.cjar</spanx></strong> (Constraint JAR) file containing a policy store. The request body MUST be a <spanx style="verb">multipart/form-data</spanx> upload with the following part:</t>
 
 <t><list style="symbols">
   <t><strong>file</strong>: The <spanx style="verb">.cjar</spanx> archive.</t>
@@ -216,26 +217,149 @@ Content-Type: application/zip
 </section>
 <section anchor="api-response"><name>API Response</name>
 
-<t>The server validates the uploaded file and metadata. On success, it stores the file and returns <strong>201 Created</strong> with a JSON body containing the assigned identifier. On validation failure, it returns <strong>400 Bad Request</strong> with an error description.</t>
+<t>The server validates the uploaded file and metadata, and computes the <spanx style="verb">package_digest</spanx> (<xref target="package-integrity"/>). The response depends on whether the tuple (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>, <spanx style="verb">policy_store.release_id</spanx>) has already been recorded (<xref target="loading-activation-rollback"/>):</t>
+
+<texttable title="POST response status codes">
+      <ttcol align='left'>Condition</ttcol>
+      <ttcol align='left'>Status code</ttcol>
+      <c>The tuple is new and the policy store is valid. The PDP stores the release.</c>
+      <c>201 Created</c>
+      <c>The tuple is already recorded with the same <spanx style="verb">package_digest</spanx>. The upload is idempotent and nothing new is stored.</c>
+      <c>200 OK</c>
+      <c>The tuple is already recorded with a different <spanx style="verb">package_digest</spanx>.</c>
+      <c>409 Conflict</c>
+      <c>The policy store fails validation.</c>
+      <c>400 Bad Request</c>
+</texttable>
+
+<t>A 201 or 200 response carries a JSON body with the following members:</t>
+
+<dl>
+  <dt><spanx style="verb">id</spanx>:</dt>
+  <dd>
+    <t>The <spanx style="verb">policy_store.id</spanx> from the verified <spanx style="verb">metadata.json</spanx>.</t>
+  </dd>
+  <dt><spanx style="verb">version</spanx>:</dt>
+  <dd>
+    <t>The <spanx style="verb">policy_store.version</spanx> from the verified <spanx style="verb">metadata.json</spanx>.</t>
+  </dd>
+  <dt><spanx style="verb">release_id</spanx>:</dt>
+  <dd>
+    <t>The <spanx style="verb">policy_store.release_id</spanx> from the verified <spanx style="verb">metadata.json</spanx>.</t>
+  </dd>
+  <dt><spanx style="verb">package_digest</spanx>:</dt>
+  <dd>
+    <t>The computed package digest.</t>
+  </dd>
+</dl>
 
 <t><strong>Example Response (Success)</strong>:</t>
 
 <figure><sourcecode type="json"><![CDATA[
 {
-  "id": "store-12345",
-  "message": "Policy store uploaded successfully."
+  "id": "https://acme.com/apps/analytics/policystore/",
+  "version": "1.2.0",
+  "release_id": "2025-01-15-main-a1b2c3",
+  "package_digest": "sha256:7d3e9f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e"
 }
 ]]></sourcecode></figure>
 
 <t><strong>Example Response (Error)</strong>:</t>
 
-<figure><sourcecode type="json"><![CDATA[
+<figure><sourcecode type="http"><![CDATA[
+HTTP/1.1 409 Conflict
+Content-Type: application/json
+
 {
-  "error": "Version conflict: policy_store.version already recorded with a different package_digest."
+  "error": "Release conflict: (policy_store.id, policy_store.version, policy_store.release_id) already recorded with a different package_digest."
 }
 ]]></sourcecode></figure>
 
 <t>Refer to <xref target="transport"/> for more details.</t>
+
+</section>
+<section anchor="api-get"><name>Reading Policy Store Releases</name>
+
+<t>A GET request to the <strong><spanx style="verb">/access/v1/policy-store</spanx></strong> endpoint returns the releases that the PDP has accepted for a policy store. Policy store identifiers are URIs, so they MUST be passed as query parameters and not as path segments. The request uses the following query parameters:</t>
+
+<dl>
+  <dt><spanx style="verb">id</spanx>:</dt>
+  <dd>
+    <t>REQUIRED. The <spanx style="verb">policy_store.id</spanx>, percent-encoded as a query parameter value.</t>
+  </dd>
+  <dt><spanx style="verb">version</spanx>:</dt>
+  <dd>
+    <t>REQUIRED. The <spanx style="verb">policy_store.version</spanx>.</t>
+  </dd>
+  <dt><spanx style="verb">release_id</spanx>:</dt>
+  <dd>
+    <t>OPTIONAL. The <spanx style="verb">policy_store.release_id</spanx>. When present, the response contains at most one release.</t>
+  </dd>
+</dl>
+
+<t><strong>Example Request</strong>:</t>
+
+<figure><sourcecode type="http"><![CDATA[
+GET /access/v1/policy-store?id=https%3A%2F%2Facme.com%2Fapps%2Fanalytics%2Fpolicystore%2F&version=1.2.0 HTTP/1.1
+Host: pdp.example.com
+Authorization: Bearer mF_9.B5f-4.1JqM
+]]></sourcecode></figure>
+
+<t>On success, the PDP returns <strong>200 OK</strong> with a JSON object containing a <spanx style="verb">releases</spanx> array. Each element describes one accepted release with the following members:</t>
+
+<dl>
+  <dt><spanx style="verb">id</spanx>:</dt>
+  <dd>
+    <t>REQUIRED. The <spanx style="verb">policy_store.id</spanx>.</t>
+  </dd>
+  <dt><spanx style="verb">version</spanx>:</dt>
+  <dd>
+    <t>REQUIRED. The <spanx style="verb">policy_store.version</spanx>.</t>
+  </dd>
+  <dt><spanx style="verb">release_id</spanx>:</dt>
+  <dd>
+    <t>REQUIRED. The <spanx style="verb">policy_store.release_id</spanx>.</t>
+  </dd>
+  <dt><spanx style="verb">package_digest</spanx>:</dt>
+  <dd>
+    <t>REQUIRED. The package digest recorded for the release.</t>
+  </dd>
+  <dt><spanx style="verb">provenance_verified</spanx>:</dt>
+  <dd>
+    <t>REQUIRED boolean. <spanx style="verb">true</spanx> when the release was accepted with a verified Provenance Profile (<xref target="provenance-profile"/>), otherwise <spanx style="verb">false</spanx>.</t>
+  </dd>
+  <dt><spanx style="verb">active</spanx>:</dt>
+  <dd>
+    <t>OPTIONAL boolean. <spanx style="verb">true</spanx> when the release is the active snapshot that the PDP evaluates against. Selection and activation of a release are PDP concerns; a PDP that has no such concept omits this member.</t>
+  </dd>
+</dl>
+
+<t>If no accepted release matches the query, the PDP returns <strong>404 Not Found</strong>.</t>
+
+<t><strong>Example Response</strong>:</t>
+
+<figure><sourcecode type="json"><![CDATA[
+{
+  "releases": [
+    {
+      "id": "https://acme.com/apps/analytics/policystore/",
+      "version": "1.2.0",
+      "release_id": "2025-01-15-main-a1b2c3",
+      "package_digest": "sha256:7d3e9f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e",
+      "provenance_verified": true,
+      "active": true
+    },
+    {
+      "id": "https://acme.com/apps/analytics/policystore/",
+      "version": "1.2.0",
+      "release_id": "2025-01-16-main-d4e5f6",
+      "package_digest": "sha256:1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d",
+      "provenance_verified": true,
+      "active": false
+    }
+  ]
+}
+]]></sourcecode></figure>
 
 </section>
 </section>
@@ -246,8 +370,8 @@ Content-Type: application/zip
 <figure title="Policy Store Directory Layout"><artwork type="ascii-art"><![CDATA[
 policy-store-root/
 ├── metadata.json
-├── integrity.json      (optional profile; requires signatures.json)
-├── signatures.json     (optional profile; requires integrity.json)
+├── integrity.json
+├── signatures.json     (optional; Provenance Profile requirement)
 ├── policies/
 │   └── (one policy document per file)
 ├── schema/             (optional)
@@ -266,6 +390,10 @@ policy-store-root/
   <dt><spanx style="verb">metadata.json</spanx>:</dt>
   <dd>
     <t>REQUIRED at the policy store root. Contains policy store metadata as defined in Metadata (<xref target="metadata"/>).</t>
+  </dd>
+  <dt><spanx style="verb">integrity.json</spanx>:</dt>
+  <dd>
+    <t>REQUIRED at the policy store root, in both the Directory Format and the Archive Format. Contains the package integrity inventory as defined in Package Integrity (<xref target="package-integrity"/>).</t>
   </dd>
   <dt><spanx style="verb">policies/</spanx>:</dt>
   <dd>
@@ -292,6 +420,10 @@ policy-store-root/
   <dt><spanx style="verb">trusted-issuers.json</spanx>:</dt>
   <dd>
     <t>OPTIONAL. Contains trusted issuer configuration as defined in Trusted Issuers (<xref target="trusted-issuers"/>).</t>
+  </dd>
+  <dt><spanx style="verb">signatures.json</spanx>:</dt>
+  <dd>
+    <t>OPTIONAL. Contains provenance and approval signatures as defined in Provenance Profile (<xref target="provenance-profile"/>).</t>
   </dd>
 </dl>
 
@@ -394,7 +526,7 @@ policy-store-root/
       <ttcol align='left'>Key</ttcol>
       <ttcol align='left'>Description</ttcol>
       <c><spanx style="verb">id</spanx></c>
-      <c>REQUIRED string. A unique identifier for the policy store. It MUST be a URI conforming to RFC 3986 and MUST uniquely identify the policy store.</c>
+      <c>REQUIRED string. A unique identifier for the policy store. It MUST be a URI conforming to <xref target="RFC3986"/>, either a URL (for example, <spanx style="verb">https://acme.com/apps/analytics/policystore/</spanx>) or a URN (for example, <spanx style="verb">urn:acme:policystore:analytics</spanx>), and MUST uniquely identify the policy store. Values are compared by exact string match.</c>
       <c><spanx style="verb">name</spanx></c>
       <c>REQUIRED string. A human-readable name for the policy store.</c>
       <c><spanx style="verb">description</spanx></c>
@@ -402,9 +534,9 @@ policy-store-root/
       <c><spanx style="verb">version</spanx></c>
       <c>REQUIRED non-empty string. A publisher-assigned version label for the release (for example, <spanx style="verb">"1.2.0"</spanx>), scoped to <spanx style="verb">policy_store.id</spanx>. The version is a human-readable label; it is not an exact content identity. The <spanx style="verb">package_digest</spanx> (<xref target="package-integrity"/>) distinguishes two packages that are incorrectly given the same version. See <xref target="loading-activation-rollback"/> for the constraint on reusing a version with different content.</c>
       <c><spanx style="verb">release_id</spanx></c>
-      <c>REQUIRED when version labels can be reused across environments or branches; otherwise OPTIONAL. A publisher-assigned identifier that distinguishes releases whose version labels collide. Its scope is the pair (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">release_id</spanx>); it need not be globally unique.</c>
+      <c>REQUIRED non-empty string. A publisher-assigned identifier that distinguishes releases of the same version, so that a publisher can iterate on a version without changing its label. It MUST be unique within the pair (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>); it need not be globally unique. The tuple (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>, <spanx style="verb">policy_store.release_id</spanx>) identifies a release.</c>
       <c><spanx style="verb">created_date</spanx></c>
-      <c>OPTIONAL string. ISO 8601 date-time when the policy store was created.</c>
+      <c>OPTIONAL string. Date-time when the policy store was created, in the <spanx style="verb">date-time</spanx> format of <xref target="RFC3339"/>.</c>
 </texttable>
 
 <t>Implementations MUST NOT add additional top-level keys to <spanx style="verb">metadata.json</spanx> unless documented by a future revision of this specification. The <spanx style="verb">policy_store</spanx> object MUST NOT contain keys other than those defined here unless documented by a future revision.</t>
@@ -432,7 +564,7 @@ policy-store-root/
   "policy_language": "cedar",
   "policy_language_version": "4.4.0",
   "policy_store": {
-    "id": "http://acme.com/apps/analytics/policystore/",
+    "id": "https://acme.com/apps/analytics/policystore/",
     "name": "Acme Analytics Web Application",
     "description": "Policies for the analytics web application.",
     "version": "1.2.0",
@@ -452,7 +584,7 @@ policy-store-root/
 </section>
 <section anchor="trusted-issuers"><name>Trusted Issuers</name>
 
-<t><spanx style="verb">trusted-issuers.json</spanx> configuration file describes tokens from organization's trusted issuers. PDP MAY accept these tokens as evidence during policy evaluation. This enables PDPs to validate JSON Web Tokens (<xref target="RFC7519"/>) and processs custom tokens to subsequently map them to principal or entity types in the policy store's schema.</t>
+<t><spanx style="verb">trusted-issuers.json</spanx> configuration file describes tokens from organization's trusted issuers. PDP MAY accept these tokens as evidence during policy evaluation. This enables PDPs to validate JSON Web Tokens (<xref target="RFC7519"/>) and process custom tokens to subsequently map them to principal or entity types in the policy store's schema.</t>
 
 <section anchor="structure-1"><name>Structure</name>
 
@@ -460,20 +592,30 @@ policy-store-root/
 
 <t>The key of each map entry names an entity type, defined in the policy store's schema, that this token is materialized as (for example, <spanx style="verb">Acme::Access_token</spanx> in Cedar, or a Cerbos principal schema reference).</t>
 
-<t>The value of each map entry is an JSON object that describes a token released by an issuer trusted by the organization. This JSON object MUST include the following keys:</t>
+<t>A schema entity type name MUST NOT be declared by more than one map entry within <spanx style="verb">trusted-issuers.json</spanx>. A policy store that violates this constraint is invalid.</t>
+
+<t>The value of each map entry is a JSON object that describes a token released by an issuer trusted by the organization. This JSON object MUST include the following keys:</t>
 
 <dl>
-  <dt><spanx style="verb">type</spanx>:</dt>
+  <dt><spanx style="verb">typ</spanx>:</dt>
   <dd>
-    <t>REQUIRED non-empty string. The type of token released by the issuer. Valid values are <spanx style="verb">jwt</spanx> for JSON Web Tokens or <spanx style="verb">custom</spanx> for non-JWT tokens.</t>
+    <t>REQUIRED non-empty string. The type of token released by the issuer. Valid values are <spanx style="verb">jwt</spanx> for JSON Web Tokens or <spanx style="verb">custom</spanx> for non-JWT tokens. Values are compared case-insensitively and producers SHOULD emit lowercase values. This member should not be confused with the JOSE header parameter <spanx style="verb">typ</spanx> (<xref target="RFC7515"/>).</t>
   </dd>
   <dt><spanx style="verb">issuer</spanx>:</dt>
   <dd>
-    <t>REQUIRED non-empty string. Short human-readable name for the issuer.</t>
+    <t>REQUIRED string. An identifier for the issuer that matches the regular expression <spanx style="verb">^[A-Za-z_][A-Za-z0-9_]*$</spanx>.</t>
   </dd>
   <dt><spanx style="verb">configuration_endpoints</spanx>:</dt>
   <dd>
-    <t>OPTIONAL object. A JSON map of endpoint names as keys and their corresponding URIs <xref target="RFC8615"/> as values.</t>
+    <t>REQUIRED object when <spanx style="verb">typ</spanx> is <spanx style="verb">jwt</spanx>. Describes where the PDP obtains the issuer's signing keys and which <spanx style="verb">iss</spanx> claim value it expects. The object MUST use exactly one of the following forms:
+</t>
+
+    <t><list style="symbols">
+      <t>Discovery form: the object contains only <spanx style="verb">configuration</spanx>, the URI (<xref target="RFC3986"/>) of the issuer's OpenID Connect discovery document, ending in <spanx style="verb">/.well-known/openid-configuration</spanx>. The PDP obtains signing keys from the <spanx style="verb">jwks_uri</spanx> in that document. The expected <spanx style="verb">iss</spanx> claim value is the <spanx style="verb">configuration</spanx> URI with the <spanx style="verb">/.well-known/openid-configuration</spanx> suffix removed.</t>
+      <t>Static form: the object contains <spanx style="verb">jwks</spanx>, the URI (<xref target="RFC3986"/>) of the issuer's JSON Web Key Set, and <spanx style="verb">iss</spanx>, the issuer's <spanx style="verb">https</spanx> URL (for example, <spanx style="verb">https://idp.acme.com</spanx>). Both members are REQUIRED. The PDP obtains signing keys from <spanx style="verb">jwks</spanx> and expects the token's <spanx style="verb">iss</spanx> claim to equal <spanx style="verb">iss</spanx>.</t>
+    </list></t>
+
+    <t>In both forms, the PDP compares the expected value with the token's <spanx style="verb">iss</spanx> claim by exact string comparison.</t>
   </dd>
   <dt><spanx style="verb">token_id</spanx>:</dt>
   <dd>
@@ -492,8 +634,8 @@ policy-store-root/
 <figure title="Example trusted issuer token configuration"><sourcecode type="json"><![CDATA[
 {
   "Acme::Access_token": {
-    "type": "jwt",
-    "issuer": "Acme Incorporated",
+    "typ": "jwt",
+    "issuer": "Acme",
     "configuration_endpoints": {
       "configuration": "https://idp.acme.com/.well-known/openid-configuration"
     },
@@ -501,8 +643,8 @@ policy-store-root/
     "required_claims": ["jti", "iss", "aud", "sub", "exp"]
   },
   "Lapis::personal_token": {
-    "type": "custom",
-    "issuer": "Lapis Incorporated"
+    "typ": "custom",
+    "issuer": "Lapis"
   }
 }
 ]]></sourcecode></figure>
@@ -511,16 +653,14 @@ policy-store-root/
 </section>
 <section anchor="custom-token-type"><name>Custom token type</name>
 
-<t><spanx style="verb">custom</spanx> token type describes a token that the PDP can not validate using JSON Web Token (<xref target="RFC7519"/>) mechanisms. These tokens require specialized processing. These tokens include API keys, opaque session handles, vendor-specific or legacy token formats, and tokens that use encryption or signature algorithms the PDP does not implement natively.</t>
+<t><spanx style="verb">custom</spanx> token type describes a token that the PDP cannot validate using JSON Web Token (<xref target="RFC7519"/>) mechanisms. These tokens require specialized processing. These tokens include API keys, opaque session handles, vendor-specific or legacy token formats, and tokens that use encryption or signature algorithms the PDP does not implement natively.</t>
 
 <t>Like all other map entries in <spanx style="verb">trusted-issuers.json</spanx>, a map entry for a custom token describes the schema entity types those tokens should be mapped to during policy evaluation. A PDP validates a custom token using a token processor. A token processor contains the logic to interpret and validate custom tokens. A token processor component may be owned by the organization or the PDP.</t>
 
 <t>Consistent with the scope of this specification, this section defines the configuration for custom token types only. It does not define how a PDP validates a custom token, how a
 token processor is implemented or registered, or how a custom token is materialized as an entity.</t>
 
-<t>Unlike a JWT token, a custom token has no <spanx style="verb">configuration_endpoint</spanx>. The token validation logic is outside the scope of this specification and may be part of the token processor implementation.</t>
-
-<t>A schema entity type name MUST NOT be declared by more than one map entry within <spanx style="verb">trusted-issuers.json</spanx>. A policy store that violates this constraint is invalid.</t>
+<t>Unlike a JWT token, a custom token has no <spanx style="verb">configuration_endpoints</spanx>. The token validation logic is outside the scope of this specification and may be part of the token processor implementation.</t>
 
 <section anchor="pdp-support"><name>PDP Support</name>
 
@@ -541,7 +681,7 @@ token processor is implemented or registered, or how a custom token is materiali
   <t>The archive MUST use the ZIP format and <spanx style="verb">.cjar</spanx> file extension.</t>
   <t>Paths inside the archive MUST match the Directory Format layout relative to the policy store root.</t>
   <t>The archive MUST NOT require extraction to a specific absolute path; relative paths MUST be preserved.</t>
-  <t>Archive file names SHOULD follow the pattern <spanx style="verb">{policy-store-name}-{version}.cjar</spanx> where <spanx style="verb">version</spanx> matches <spanx style="verb">policy_store.version</spanx> in <spanx style="verb">metadata.json</spanx>. The file name is a convenience only; it is not authoritative and MUST NOT override <spanx style="verb">policy_store.version</spanx>, <spanx style="verb">policy_store.release_id</spanx>, or the <spanx style="verb">package_digest</spanx>.</t>
+  <t>Archive file names SHOULD follow the pattern <spanx style="verb">{policy-store-name}-{version}-{release_id}.cjar</spanx> where <spanx style="verb">version</spanx> matches <spanx style="verb">policy_store.version</spanx> and <spanx style="verb">release_id</spanx> matches <spanx style="verb">policy_store.release_id</spanx> in <spanx style="verb">metadata.json</spanx>. The file name is a convenience only; it is not authoritative and MUST NOT override <spanx style="verb">policy_store.version</spanx>, <spanx style="verb">policy_store.release_id</spanx>, or the <spanx style="verb">package_digest</spanx>.</t>
 </list></t>
 
 <t>PDPs loading <spanx style="verb">.cjar</spanx> files SHOULD validate structure and required files before evaluation.</t>
@@ -558,16 +698,16 @@ token processor is implemented or registered, or how a custom token is materiali
   <t>Parse and validate <spanx style="verb">metadata.json</spanx>.</t>
   <t>Confirm the implementation supports the declared <spanx style="verb">policy_store_spec_version</spanx>. A PDP MUST reject a policy store whose <spanx style="verb">policy_store_spec_version</spanx> it does not implement.</t>
   <t>Confirm the implementation supports the declared <spanx style="verb">policy_language</spanx> and <spanx style="verb">policy_language_version</spanx>, or reject the store.</t>
-  <t>Apply the deployment's integrity requirement and, when present or required, verify the Package Integrity Profile (<xref target="package-integrity"/>). When the profile is in effect, the loader MUST confirm that <spanx style="verb">metadata.json</spanx> is present in the signed inventory and that its verified bytes match before treating any metadata value as authenticated. Complete verification before loading artifacts into the policy engine.</t>
+  <t>Verify <spanx style="verb">integrity.json</spanx> and compute the <spanx style="verb">package_digest</spanx> as defined in Package Integrity (<xref target="package-integrity"/>). The loader MUST confirm that <spanx style="verb">metadata.json</spanx> is present in the inventory and that its bytes match before using any metadata value. Apply the deployment's provenance requirement and, when <spanx style="verb">signatures.json</spanx> is present or provenance is required, verify the Provenance Profile (<xref target="provenance-profile"/>). Complete verification before loading artifacts into the policy engine.</t>
   <t>If present, load <spanx style="verb">schema/</spanx>; then load policies and optional templates, entities, trusted issuers, and custom issuers according to policy engine rules.</t>
   <t>Verify policy engine-specific requirements if any (such as unique policy identifiers).</t>
-  <t>Verify that no schema entity type is declared <spanx style="verb">trusted-issuers.json</spanx></t>
+  <t>Verify that no schema entity type is declared by more than one map entry in <spanx style="verb">trusted-issuers.json</spanx>.</t>
   <t>If <spanx style="verb">trusted-issuers.json</spanx> defines any <spanx style="verb">custom</spanx> type tokens (<xref target="custom-token-type"/>), then determine whether the implementation can process each declared entity type.</t>
 </list></t>
 
 <t>Failure at any REQUIRED validation step MUST result in rejecting the policy store for evaluation. Rejection MUST leave the previously active store unchanged.</t>
 
-<t>On acceptance, and again on activation, the PDP MUST record the tuple (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>, <spanx style="verb">package_digest</spanx>). When the Package Integrity Profile is in effect, these values MUST be taken from the verified <spanx style="verb">metadata.json</spanx> bytes and the computed <spanx style="verb">package_digest</spanx>. The conflict and activation constraints in <xref target="loading-activation-rollback"/> apply to these recorded tuples.</t>
+<t>On acceptance, and again on activation, the PDP MUST record the tuple (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>, <spanx style="verb">policy_store.release_id</spanx>, <spanx style="verb">package_digest</spanx>). These values MUST be taken from the verified <spanx style="verb">metadata.json</spanx> bytes and the computed <spanx style="verb">package_digest</spanx>. The conflict and activation constraints in <xref target="loading-activation-rollback"/> apply to these recorded tuples.</t>
 
 </section>
 <section anchor="safe-package-paths"><name>Safe Package Paths</name>
@@ -581,11 +721,9 @@ token processor is implemented or registered, or how a custom token is materiali
 <t>Verification and subsequent loading MUST use the same immutable snapshot of file bytes. Verifying a directory and later reopening mutable paths is insufficient. Archive metadata, executable bits, timestamps, and entry order MUST NOT affect policy evaluation.</t>
 
 </section>
-<section anchor="package-integrity"><name>Package Integrity Profile</name>
+<section anchor="package-integrity"><name>Package Integrity</name>
 
-<t>Editor's note: This section proposes an optional profile for working-group review. The profile identifier and signature choices below are provisional. They do not indicate adoption or implementation conformance.</t>
-
-<t>The profile adds two reserved root files: <spanx style="verb">integrity.json</spanx> and <spanx style="verb">signatures.json</spanx>. A deployment MAY accept stores without this profile, but MUST configure that decision outside the incoming package. If either reserved file is present, both MUST be present and the complete profile MUST be verified or the store rejected. A loader that does not support the profile MUST reject these stores. An integrity-required deployment MUST reject a store with either file missing; it MUST NOT retry it as an unsigned store.</t>
+<t>Every policy store MUST contain the reserved root file <spanx style="verb">integrity.json</spanx>, which inventories the files of the store. A PDP MUST compute the <spanx style="verb">package_digest</spanx> of every policy store it loads, whether or not the store is signed. The optional Provenance Profile (<xref target="provenance-profile"/>) adds signatures over the <spanx style="verb">package_digest</spanx>.</t>
 
 <section anchor="inventory-and-content-identity"><name>Inventory and content identity</name>
 
@@ -594,11 +732,13 @@ token processor is implemented or registered, or how a custom token is materiali
 <texttable>
       <ttcol align='left'>Member</ttcol>
       <ttcol align='left'>Requirement</ttcol>
-      <c><spanx style="verb">profile</spanx></c>
-      <c>REQUIRED string, exactly <spanx style="verb">authzen-policy-store-integrity-1</spanx>.</c>
+      <c><spanx style="verb">policy_store_spec_version</spanx></c>
+      <c>REQUIRED string. The version of this specification that the inventory conforms to. It MUST equal <spanx style="verb">policy_store_spec_version</spanx> in <spanx style="verb">metadata.json</spanx>.</c>
       <c><spanx style="verb">files</spanx></c>
       <c>REQUIRED object mapping relative file paths to artifact descriptors.</c>
 </texttable>
+
+<t>A loader selects the inventory and digest rules from <spanx style="verb">policy_store_spec_version</spanx> in <spanx style="verb">integrity.json</spanx>, because <spanx style="verb">metadata.json</spanx> is not yet verified at that point. A loader MUST reject a value it does not implement. After verifying <spanx style="verb">metadata.json</spanx>, the loader MUST reject the store if the two <spanx style="verb">policy_store_spec_version</spanx> values differ.</t>
 
 <t>Each descriptor MUST contain exactly these members:</t>
 
@@ -613,15 +753,42 @@ token processor is implemented or registered, or how a custom token is materiali
       <c>REQUIRED boolean indicating that the loader must understand and process the artifact to accept the store.</c>
 </texttable>
 
-<t><spanx style="verb">files</spanx> MUST inventory every regular file, including <spanx style="verb">metadata.json</spanx>, except the two reserved integrity files. It MUST NOT inventory directories or either reserved file. Missing files, unlisted files, duplicate paths, and digest mismatches MUST cause rejection. The inventory is subject to the same path rules as the package. It does not authorize additional directories or override the base format's content requirements.</t>
+<t><spanx style="verb">files</spanx> MUST inventory every regular file, including <spanx style="verb">metadata.json</spanx>, except <spanx style="verb">integrity.json</spanx> and <spanx style="verb">signatures.json</spanx>. It MUST NOT inventory directories or either of those two files. Missing files, unlisted files, duplicate paths, and digest mismatches MUST cause rejection. The inventory is subject to the same path rules as the package. It does not authorize additional directories or override the base format's content requirements.</t>
 
 <t><spanx style="verb">metadata.json</spanx> MUST have media type <spanx style="verb">application/json</spanx> and <spanx style="verb">critical: true</spanx>. All policy, schema, template, entity, and issuer artifacts used for evaluation MUST be critical. A loader MUST reject a critical artifact whose representation or role it cannot process. Non-critical artifacts MAY be ignored semantically, but their bytes MUST still be verified. <spanx style="verb">application/octet-stream</spanx> describes opaque bytes; it does not establish that a loader understands them. Engine-specific artifacts require a separately agreed extension to the layout and semantics.</t>
 
-<t>The metadata file binds the store identifier, policy language and version, and governance claims into the inventory. JSON artifact bytes MUST NOT be reserialized, whitespace-normalized, or line-ending-normalized before hashing. The package digest is <spanx style="verb">sha256:</spanx> followed by the lowercase hexadecimal SHA-256 digest of the UTF-8 JCS serialization of the entire <spanx style="verb">integrity.json</spanx> object (<xref target="RFC8785"/>). Unknown profile identifiers or inventory members MUST be rejected. This version has no implicit extension or fallback mechanism.</t>
+<t>The metadata file binds the store identifier, version, release identifier, policy language and version, and governance claims into the inventory. JSON artifact bytes MUST NOT be reserialized, whitespace-normalized, or line-ending-normalized before hashing. The package digest is <spanx style="verb">sha256:</spanx> followed by the lowercase hexadecimal SHA-256 digest of the UTF-8 JCS serialization of the entire <spanx style="verb">integrity.json</spanx> object (<xref target="RFC8785"/>). Unknown inventory members MUST be rejected. This version has no implicit extension or fallback mechanism.</t>
 
-<t>The digest identifies the inventoried content and descriptors. ZIP compression, ZIP entry order, and JSON object-member ordering in <spanx style="verb">integrity.json</spanx> do not change it. Changing an artifact's bytes, path, media type, or criticality does. Signatures are excluded to avoid a circular digest and permit approvals to be added without changing content identity. A digest alone does not authenticate its producer.</t>
+<t>The digest identifies the inventoried content and descriptors. ZIP compression, ZIP entry order, and JSON object-member ordering in <spanx style="verb">integrity.json</spanx> do not change it. Changing an artifact's bytes, path, media type, or criticality does. Signatures (<xref target="provenance-profile"/>) are excluded to avoid a circular digest and permit approvals to be added without changing content identity. A digest alone does not authenticate its producer.</t>
+
+<t>Because <spanx style="verb">metadata.json</spanx> is inventoried, two releases that differ in <spanx style="verb">policy_store.version</spanx> or <spanx style="verb">policy_store.release_id</spanx> always have different package digests. Identical content therefore cannot be re-tagged as a new release without changing its digest.</t>
 
 </section>
+<section anchor="loading-activation-rollback"><name>Loading, activation, and rollback</name>
+
+<t>After safe path and structural validation, a loader MUST verify the complete inventory and calculate the package digest before any policy-engine evaluation or issuer processing. When the Provenance Profile is in effect, the loader MUST also enforce signature and trust policy (<xref target="provenance-profile"/>) at this point. It MUST confirm that <spanx style="verb">metadata.json</spanx> is in the inventory and use its verified bytes as the source of <spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>, and <spanx style="verb">policy_store.release_id</spanx>. It MUST then apply the base format's metadata, language, and engine validation rules to the same snapshot. Successful integrity or signature verification does not establish policy correctness or safe issuer configuration.</t>
+
+<t>On acceptance, the PDP MUST record the tuple (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>, <spanx style="verb">policy_store.release_id</spanx>, <spanx style="verb">package_digest</spanx>). It MUST reject an upload whose (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>, <spanx style="verb">policy_store.release_id</spanx>) is already recorded with a different <spanx style="verb">package_digest</spanx>, unless an explicit administrative correction process is defined and authorized for that deployment. An upload that repeats an already recorded tuple with the same <spanx style="verb">package_digest</spanx> MUST be treated as idempotent. On activation, the PDP MUST record the same tuple for the release it makes active.</t>
+
+<t>Selection and activation of a release are PDP concerns and out of scope for this specification. Publishing, fetching, uploading, approving, and activating are separate permissions. The upload endpoint remains subject to administrative authentication and authorization; accepting a package MUST NOT grant its producer permission to activate it. This specification adds no activation, rollback, or revocation API and no ability for a resource to push policy into a PDP.</t>
+
+<t>An intentional rollback, which activates an earlier accepted release, MUST be authorized through the deployment's administrative process and logged with the selected digest.</t>
+
+<section anchor="active-snapshot-and-rollout"><name>Active snapshot and rollout</name>
+
+<t>Acceptance and activation are distinct. Accepting a release records and stores it; activation makes one accepted release the active snapshot that the policy engine evaluates against. Uploading a newer release does not change the active snapshot until that release is activated.</t>
+
+<t>For the purpose of decision evidence, the content a PDP "used" for a decision is the release of its active loaded snapshot at decision time. During a rollout, when a newer release has been accepted or uploaded but not yet activated, the PDP MUST report the <spanx style="verb">policy_store.version</spanx> and <spanx style="verb">package_digest</spanx> of the currently active snapshot, not those of the newer, not-yet-activated release. A single decision MUST be evaluated entirely against one active snapshot.</t>
+
+</section>
+</section>
+</section>
+<section anchor="provenance-profile"><name>Provenance Profile</name>
+
+<t>Editor's note: This section proposes an optional profile for working-group review. The profile identifier and signature choices below are provisional. They do not indicate adoption or implementation conformance.</t>
+
+<t>The profile adds one reserved root file, <spanx style="verb">signatures.json</spanx>, which carries signatures over the <spanx style="verb">package_digest</spanx> (<xref target="package-integrity"/>). A deployment MAY accept stores without this profile, but MUST configure that decision outside the incoming package. If <spanx style="verb">signatures.json</spanx> is present, the complete profile MUST be verified or the store rejected. A loader that does not support the profile MUST reject stores that contain <spanx style="verb">signatures.json</spanx>. A provenance-required deployment MUST reject a store whose <spanx style="verb">signatures.json</spanx> is missing; it MUST NOT retry it as an unsigned store.</t>
+
 <section anchor="provenance-and-approvals"><name>Provenance and approvals</name>
 
 <t><spanx style="verb">signatures.json</spanx> MUST be a UTF-8 JSON array of JWS Compact Serialization strings (<xref target="RFC7515"/>), with at least one element. Duplicate JSON members MUST be rejected in decoded protected headers and payloads. Each JWS payload MUST be a UTF-8 JSON object containing exactly these three string members:</t>
@@ -630,9 +797,9 @@ token processor is implemented or registered, or how a custom token is materiali
       <ttcol align='left'>Member</ttcol>
       <ttcol align='left'>Requirement</ttcol>
       <c><spanx style="verb">profile</spanx></c>
-      <c>Exactly <spanx style="verb">authzen-policy-store-integrity-1</spanx>.</c>
+      <c>Exactly <spanx style="verb">authzen-policy-store-provenance-1</spanx>.</c>
       <c><spanx style="verb">package_digest</spanx></c>
-      <c>The package digest computed above.</c>
+      <c>The package digest computed as defined in <xref target="package-integrity"/>.</c>
       <c><spanx style="verb">purpose</spanx></c>
       <c>Either <spanx style="verb">provenance</spanx> or <spanx style="verb">approval</spanx>.</c>
 </texttable>
@@ -648,23 +815,12 @@ token processor is implemented or registered, or how a custom token is materiali
 <t>Trust anchors, permitted algorithms, approval thresholds, key validity periods, and revocation status MUST be managed outside the incoming package. Key rotation MAY allow a configured overlap, but a package cannot introduce its own replacement trusted key. A revoked key MUST NOT count toward new acceptance. Previously activated content requires a deployment decision when its signer is revoked; this format does not provide a revocation service. If required current trust information is unavailable, the loader MUST reject new activation.</t>
 
 </section>
-<section anchor="loading-activation-rollback"><name>Loading, activation, and rollback</name>
+<section anchor="freshness-and-rollback"><name>Freshness and rollback</name>
 
-<t>After safe path and structural validation, a loader MUST verify the complete inventory, calculate the package digest, and enforce signature and trust policy before any policy-engine evaluation or issuer processing. It MUST confirm that <spanx style="verb">metadata.json</spanx> is in the signed inventory and use its verified bytes as the source of <spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>, and <spanx style="verb">policy_store.release_id</spanx>. It MUST then apply the base format's metadata, language, and engine validation rules to the same snapshot. Successful signature verification does not establish policy correctness or safe issuer configuration.</t>
+<t>When the profile is in effect, the loader MUST confirm that <spanx style="verb">metadata.json</spanx> is in the inventory bound by the verified signatures before treating any metadata value as authenticated.</t>
 
-<t>On acceptance, the PDP MUST record the tuple (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>, <spanx style="verb">package_digest</spanx>), together with <spanx style="verb">release_id</spanx> when present. It MUST reject reuse of the same (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>) with a <spanx style="verb">package_digest</spanx> that differs from the one previously recorded for that pair, unless an explicit administrative correction process is defined and authorized for that deployment. An upload that repeats an already recorded (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">policy_store.version</spanx>, <spanx style="verb">package_digest</spanx>) MAY be treated as idempotent. On activation, the PDP MUST record the same tuple for the release it makes active.</t>
+<t>A valid old signature remains cryptographically valid. Deployments MUST apply an external freshness or rollback policy for the expected store and record the accepted digest. A signed version string or creation date alone is insufficient. A missing signature, unsupported profile, or failed verification MUST NOT cause a downgrade to unsigned acceptance.</t>
 
-<t>Publishing, fetching, uploading, approving, and activating are separate permissions. The existing upload endpoint remains subject to administrative authentication and authorization; accepting a package MUST NOT grant its producer permission to activate it. This profile adds no activation, rollback, or revocation API and no ability for a resource to push policy into a PDP.</t>
-
-<t>A valid old signature remains cryptographically valid. Deployments MUST apply an external freshness or rollback policy for the expected store and record the accepted digest. A signed version string or creation date alone is insufficient. An intentional rollback MUST be authorized through the deployment's administrative process and logged with the selected digest. A missing signature, unsupported profile, or failed verification MUST NOT cause a downgrade to unsigned acceptance.</t>
-
-<section anchor="active-snapshot-and-rollout"><name>Active snapshot and rollout</name>
-
-<t>Acceptance and activation are distinct. Accepting a release records and stores it; activation makes one accepted release the active snapshot that the policy engine evaluates against. Uploading a newer release does not change the active snapshot until that release is activated.</t>
-
-<t>For the purpose of decision evidence, the content a PDP "used" for a decision is the release of its active loaded snapshot at decision time. During a rollout, when a newer release has been accepted or uploaded but not yet activated, the PDP MUST report the <spanx style="verb">policy_store.version</spanx> and <spanx style="verb">package_digest</spanx> of the currently active snapshot, not those of the newer, not-yet-activated release. A single decision MUST be evaluated entirely against one active snapshot.</t>
-
-</section>
 </section>
 <section anchor="validation-cases-for-implementers"><name>Validation cases for implementers</name>
 
@@ -685,6 +841,8 @@ token processor is implemented or registered, or how a custom token is materiali
       <c>Reject signed package-digest mismatch.</c>
       <c>Omit an inventoried file or add an unlisted regular file</c>
       <c>Reject inventory mismatch.</c>
+      <c>Delete <spanx style="verb">integrity.json</spanx></c>
+      <c>Reject missing required file.</c>
       <c>Use <spanx style="verb">../outside</spanx>, <spanx style="verb">/absolute</spanx>, <spanx style="verb">C:/outside</spanx>, or a backslash path</c>
       <c>Reject before extraction.</c>
       <c>Repeat a ZIP path, duplicate a JSON member, or introduce a file/directory collision</c>
@@ -693,8 +851,10 @@ token processor is implemented or registered, or how a custom token is materiali
       <c>Reject; never evaluate unverified bytes.</c>
       <c>Supply an unsupported critical artifact with otherwise valid signatures</c>
       <c>Reject unsupported artifact.</c>
-      <c>Change the profile identifier, or add an unknown inventory member</c>
+      <c>Change the signature profile identifier, set an unsupported <spanx style="verb">policy_store_spec_version</spanx> in <spanx style="verb">integrity.json</spanx>, or add an unknown inventory member</c>
       <c>Reject unsupported profile or structure.</c>
+      <c>Set <spanx style="verb">policy_store_spec_version</spanx> in <spanx style="verb">integrity.json</spanx> to a value that differs from <spanx style="verb">metadata.json</spanx></c>
+      <c>Reject version mismatch.</c>
       <c>Alter a signature under a trusted, permitted key</c>
       <c>Reject cryptographic verification failure.</c>
       <c>Sign only with an unknown or revoked key</c>
@@ -703,22 +863,24 @@ token processor is implemented or registered, or how a custom token is materiali
       <c>Reject unmet approval policy.</c>
       <c>Repeat one approval to meet a distinct-approver threshold</c>
       <c>Reject unmet threshold.</c>
-      <c>Delete both integrity files where local policy requires integrity</c>
+      <c>Delete <spanx style="verb">signatures.json</spanx> where local policy requires provenance</c>
       <c>Reject attempted unsigned downgrade.</c>
       <c>Replay an older valid package disallowed by local rollback policy</c>
       <c>Reject activation despite valid signatures.</c>
       <c>Change metadata to a different store with weaker trust settings</c>
       <c>Reject expected-store mismatch.</c>
-      <c>Re-upload the same (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">version</spanx>, <spanx style="verb">package_digest</spanx>)</c>
+      <c>Upload a new <spanx style="verb">release_id</spanx> for an already recorded (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">version</spanx>)</c>
+      <c>Accept as a new release.</c>
+      <c>Re-upload the same (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">version</spanx>, <spanx style="verb">release_id</spanx>, <spanx style="verb">package_digest</spanx>)</c>
       <c>Accept as idempotent; no new content identity.</c>
-      <c>Reuse the same (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">version</spanx>) with a different <spanx style="verb">package_digest</spanx>, absent an authorized correction process</c>
-      <c>Reject version-digest conflict.</c>
+      <c>Reuse the same (<spanx style="verb">policy_store.id</spanx>, <spanx style="verb">version</spanx>, <spanx style="verb">release_id</spanx>) with a different <spanx style="verb">package_digest</spanx>, absent an authorized correction process</c>
+      <c>Reject release-digest conflict.</c>
 </texttable>
 
 </section>
 <section anchor="questions-for-working-group-review"><name>Questions for working-group review</name>
 
-<t>Before finalizing this profile, the working group needs to agree on the reserved filenames and version identifier, the signature envelope and mandatory algorithm, and the relationship between critical artifact descriptors and future layout extensions. Byte-level positive and negative fixtures and results from independent implementations are still needed. The profile does not claim that the current draft's fixed entity representation is neutral across all policy languages.</t>
+<t>Before finalizing this profile, the working group needs to agree on the reserved filenames and profile identifier, the signature envelope and mandatory algorithm, and the relationship between critical artifact descriptors and future layout extensions. Byte-level positive and negative fixtures and results from independent implementations are still needed. The profile does not claim that the current draft's fixed entity representation is neutral across all policy languages.</t>
 
 </section>
 </section>
@@ -735,7 +897,7 @@ so that:</t>
 
 <section anchor="decision-records"><name>Decision records</name>
 
-<t>A PDP that produces a decision record for an authorization decision MUST include both the <spanx style="verb">policy_store.version</spanx> and the <spanx style="verb">package_digest</spanx> of the active loaded snapshot used to reach that decision. The version records the human-readable release label, and the <spanx style="verb">package_digest</spanx> lets agent evidence verify the exact policy content that was used. When the Package Integrity Profile is not in effect, the PDP MUST record that the active snapshot is unsigned rather than reporting a <spanx style="verb">package_digest</spanx> it cannot substantiate.</t>
+<t>A PDP that produces a decision record for an authorization decision MUST include both the <spanx style="verb">policy_store.version</spanx> and the <spanx style="verb">package_digest</spanx> of the active loaded snapshot used to reach that decision. The version records the human-readable release label, and the <spanx style="verb">package_digest</spanx> lets agent evidence verify the exact policy content that was used. The PDP MUST also record whether the active snapshot was accepted with a verified Provenance Profile (<xref target="provenance-profile"/>).</t>
 
 <t>Consistent with <xref target="loading-activation-rollback"/>, "the active loaded snapshot used" is the snapshot active at decision time. When a newer release has been uploaded or accepted but not activated, the decision record MUST report the version and digest of the currently active snapshot.</t>
 
@@ -778,24 +940,32 @@ Content-Type: application/json
 
 <section anchor="https-json-binding"><name>HTTPS JSON Binding</name>
 
-<t>All API requests to the policy store endpoint MUST be made via an HTTPS POST request.</t>
+<t>All API requests to the policy store endpoint MUST be made via HTTPS, using the POST method to upload a policy store or the GET method to read policy store releases.</t>
 
-<t>Requests MUST include a <spanx style="verb">Content-Type</spanx> header with the value <spanx style="verb">multipart/form-data</spanx> (<xref target="RFC7578"/>). The request body MUST conform to the request structure defined in (<xref target="api-request"/>).</t>
+<t>POST requests MUST include a <spanx style="verb">Content-Type</spanx> header with the value <spanx style="verb">multipart/form-data</spanx> (<xref target="RFC7578"/>). The request body MUST conform to the request structure defined in (<xref target="api-request"/>). GET requests carry their parameters in the query string as defined in (<xref target="api-get"/>) and have no request body.</t>
 
 <texttable>
       <ttcol align='left'>API Endpoint</ttcol>
+      <ttcol align='left'>Method</ttcol>
       <ttcol align='left'>Default Path</ttcol>
       <ttcol align='left'>Metadata Parameter</ttcol>
       <ttcol align='left'>Request Schema</ttcol>
       <ttcol align='left'>Response Schema</ttcol>
       <c>Policy Store</c>
+      <c>POST</c>
       <c>/access/v1/policy-store</c>
       <c>policy_store_endpoint</c>
       <c><xref target="api-request"/></c>
       <c><xref target="api-response"/></c>
+      <c>Policy Store</c>
+      <c>GET</c>
+      <c>/access/v1/policy-store</c>
+      <c>policy_store_endpoint</c>
+      <c><xref target="api-get"/></c>
+      <c><xref target="api-get"/></c>
 </texttable>
 
-<t>A successful response is an HTTPS response with a status code of 201 Created and a <spanx style="verb">Content-Type</spanx> of <spanx style="verb">application/json</spanx>. The response body MUST be a JSON object that conforms to the structure defined in (<xref target="api-response"/>).</t>
+<t>A successful POST response has a status code of 201 Created, or 200 OK for an idempotent re-upload. A successful GET response has a status code of 200 OK. Successful responses have a <spanx style="verb">Content-Type</spanx> of <spanx style="verb">application/json</spanx>, and the response body MUST be a JSON object that conforms to the structure defined in (<xref target="api-response"/>) or (<xref target="api-get"/>).</t>
 
 <t>The request URL MUST be the value of the <spanx style="verb">policy_store_endpoint</spanx> parameter (<xref target="update-pdp-metadata"/>) if provided in the Policy Decision Point metadata. If the parameter is omitted, the URL SHOULD be formed by appending the default path (as defined in the table above) to the PDP’s base URL. PDP's base URL should be obtained from the value of <spanx style="verb">policy_decision_point</spanx> parameter of the Policy Decision Point metadata as defined by AuthZEN Authorization API (<xref target="AUTHZEN-API"/>), if available.</t>
 
@@ -816,6 +986,12 @@ Content-Type: application/json
       <c>403</c>
       <c>Forbidden</c>
       <c>An error message string</c>
+      <c>404</c>
+      <c>Not Found</c>
+      <c>An error message string. Returned by GET when no accepted release matches the query.</c>
+      <c>409</c>
+      <c>Conflict</c>
+      <c>A JSON object with error details. Returned by POST when the release tuple is already recorded with a different <spanx style="verb">package_digest</spanx>.</c>
       <c>500</c>
       <c>Internal Error</c>
       <c>An error message string</c>
@@ -857,18 +1033,18 @@ Content-Type: application/zip
 
 <t>Deployments SHOULD use signed releases or secure artifact repositories where integrity and provenance are required.</t>
 
-<t>The Package Integrity Profile (<xref target="package-integrity"/>) defines content verification and signer authorization for deployments that require it. Safe Package Paths (<xref target="safe-package-paths"/>) applies even when that profile is not used. HTTPS and artifact hashes alone do not establish that a producer is authorized to change the active policy store.</t>
+<t>Package Integrity (<xref target="package-integrity"/>) defines content verification for every policy store. The Provenance Profile (<xref target="provenance-profile"/>) adds signer authorization for deployments that require it. Safe Package Paths (<xref target="safe-package-paths"/>) applies to every policy store. HTTPS and artifact hashes alone do not establish that a producer is authorized to change the active policy store.</t>
 
-<t>The <spanx style="verb">policy_store.version</spanx> label is not anti-rollback protection or exact content identity. Audit correctness depends on binding each decision to the <spanx style="verb">package_digest</spanx> of the active snapshot and rejecting reuse of a version with conflicting content (<xref target="loading-activation-rollback"/>). Deployments SHOULD retain acceptance, activation, and decision records so that a decision can be traced to the exact policy content that produced it.</t>
+<t>The <spanx style="verb">policy_store.version</spanx> label is not anti-rollback protection or exact content identity. Audit correctness depends on binding each decision to the <spanx style="verb">package_digest</spanx> of the active snapshot and rejecting reuse of a release tuple with conflicting content (<xref target="loading-activation-rollback"/>). Deployments SHOULD retain acceptance, activation, and decision records so that a decision can be traced to the exact policy content that produced it.</t>
 
-<t>Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate <spanx style="verb">configuration_endpoint</spanx> URIs and token metadata before trusting tokens in production.</t>
+<t>Trusted issuer configuration determines which token issuers a PDP accepts. Incorrect issuer configuration can allow unauthorized principals. Implementations MUST validate <spanx style="verb">configuration_endpoints</spanx> URIs and token metadata before trusting tokens in production.</t>
 
 <t>Policy stores SHOULD be treated as part of the trusted computing base for authorization decisions. Loading a policy store from an untrusted source without validation is NOT RECOMMENDED.</t>
 
 </section>
 <section anchor="custom-tokens"><name>Custom tokens</name>
 
-<t>Custom type tokens (<xref target="custom-token-type"/>) moves credential validation out into a deployment-supplied token processor. The token processor is part of the trusted computing base for authorization decisions.</t>
+<t>Custom type tokens (<xref target="custom-token-type"/>) move credential validation out into a deployment-supplied token processor. The token processor is part of the trusted computing base for authorization decisions.</t>
 
 <t>Because a custom type token has no configuration document, there is no standard mechanism for key rotation, token status, or revocation. Deployments that accept custom type tokens MUST provide these controls through the token processor or surrounding infrastructure.</t>
 
@@ -941,19 +1117,6 @@ See the <xref target="policy-store-api-specification">Policy Store API specifica
   <seriesInfo name="RFC" value="7519"/>
   <seriesInfo name="DOI" value="10.17487/RFC7519"/>
 </reference>
-<reference anchor="RFC8615">
-  <front>
-    <title>Well-Known Uniform Resource Identifiers (URIs)</title>
-    <author fullname="M. Nottingham" initials="M." surname="Nottingham"/>
-    <date month="May" year="2019"/>
-    <abstract>
-      <t>This memo defines a path prefix for "well-known locations", "/.well-known/", in selected Uniform Resource Identifier (URI) schemes.</t>
-      <t>In doing so, it obsoletes RFC 5785 and updates the URI schemes defined in RFC 7230 to reserve that space. It also updates RFC 7595 to track URI schemes that support well-known URIs in their registry.</t>
-    </abstract>
-  </front>
-  <seriesInfo name="RFC" value="8615"/>
-  <seriesInfo name="DOI" value="10.17487/RFC8615"/>
-</reference>
 <reference anchor="RFC2119">
   <front>
     <title>Key words for use in RFCs to Indicate Requirement Levels</title>
@@ -1020,6 +1183,34 @@ See the <xref target="policy-store-api-specification">Policy Store API specifica
   <seriesInfo name="RFC" value="7518"/>
   <seriesInfo name="DOI" value="10.17487/RFC7518"/>
 </reference>
+<reference anchor="RFC3986">
+  <front>
+    <title>Uniform Resource Identifier (URI): Generic Syntax</title>
+    <author fullname="T. Berners-Lee" initials="T." surname="Berners-Lee"/>
+    <author fullname="R. Fielding" initials="R." surname="Fielding"/>
+    <author fullname="L. Masinter" initials="L." surname="Masinter"/>
+    <date month="January" year="2005"/>
+    <abstract>
+      <t>A Uniform Resource Identifier (URI) is a compact sequence of characters that identifies an abstract or physical resource. This specification defines the generic URI syntax and a process for resolving URI references that might be in relative form, along with guidelines and security considerations for the use of URIs on the Internet. The URI syntax defines a grammar that is a superset of all valid URIs, allowing an implementation to parse the common components of a URI reference without knowing the scheme-specific requirements of every possible identifier. This specification does not define a generative grammar for URIs; that task is performed by the individual specifications of each URI scheme. [STANDARDS-TRACK]</t>
+    </abstract>
+  </front>
+  <seriesInfo name="STD" value="66"/>
+  <seriesInfo name="RFC" value="3986"/>
+  <seriesInfo name="DOI" value="10.17487/RFC3986"/>
+</reference>
+<reference anchor="RFC3339">
+  <front>
+    <title>Date and Time on the Internet: Timestamps</title>
+    <author fullname="G. Klyne" initials="G." surname="Klyne"/>
+    <author fullname="C. Newman" initials="C." surname="Newman"/>
+    <date month="July" year="2002"/>
+    <abstract>
+      <t>This document defines a date and time format for use in Internet protocols that is a profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="3339"/>
+  <seriesInfo name="DOI" value="10.17487/RFC3339"/>
+</reference>
 
 
 
@@ -1079,7 +1270,7 @@ See the <xref target="policy-store-api-specification">Policy Store API specifica
 </references>
 
 
-<?line 753?>
+<?line 881?>
 
 <section anchor="json-schemas"><name>JSON Schemas (Informative)</name>
 
@@ -1104,7 +1295,7 @@ See the <xref target="policy-store-api-specification">Policy Store API specifica
     "policy_language_version": { "type": "string", "minLength": 1 },
     "policy_store": {
       "type": "object",
-      "required": ["id", "name", "version"],
+      "required": ["id", "name", "version", "release_id"],
       "properties": {
         "id": { "type": "string", "format": "uri"},
         "name": { "type": "string" },
@@ -1165,9 +1356,13 @@ See the <xref target="policy-store-api-specification">Policy Store API specifica
     },
     "entry": {
       "type": "object",
-      "required": ["type"],
+      "required": ["typ"],
       "properties": {
-        "type": { "enum": ["jwt", "custom"] }
+        "typ": {
+          "description": "case-insensitive token format.",
+          "type": "string",
+          "pattern": "^([Jj][Ww][Tt]|[Cc][Uu][Ss][Tt][Oo][Mm])$"
+        }
       },
       "oneOf": [
         { "$ref": "#/$defs/jwtEntry" },
@@ -1176,9 +1371,9 @@ See the <xref target="policy-store-api-specification">Policy Store API specifica
     },
     "jwtEntry": {
       "type": "object",
-      "required": ["type", "issuer", "configuration_endpoints"],
+      "required": ["typ", "issuer", "configuration_endpoints"],
       "properties": {
-        "type": { "const": "jwt" },
+        "typ": { "type": "string", "pattern": "^[Jj][Ww][Tt]$" },
         "issuer": { "$ref": "#/$defs/issuer" },
         "configuration_endpoints": { "$ref": "#/$defs/keySource" },
         "token_id": {
@@ -1196,9 +1391,9 @@ See the <xref target="policy-store-api-specification">Policy Store API specifica
     },
     "customEntry": {
       "type": "object",
-      "required": ["type", "issuer"],
+      "required": ["typ", "issuer"],
       "properties": {
-        "type": { "const": "custom" },
+        "typ": { "type": "string", "pattern": "^[Cc][Uu][Ss][Tt][Oo][Mm]$" },
         "issuer": { "$ref": "#/$defs/issuer" },
         "required_claims": {
           "$ref": "#/$defs/requiredClaims",
@@ -1316,7 +1511,7 @@ todo-app-policy-store/
   "policy_language": "cedar",
   "policy_language_version": "4.4.0",
   "policy_store": {
-    "id": "http://acme.com/apps/todo/policystore/",
+    "id": "https://acme.com/apps/todo/policystore/",
     "name": "todo_app_policy_store",
     "version": "1.0.0",
     "release_id": "2025-01-10-main-9f8e7d"
@@ -1367,7 +1562,7 @@ hr-policy-store/
   "policy_language": "cel",
   "policy_language_version": "0.25.0",
   "policy_store": {
-    "id": "http://acme.com/hr/policystore/",
+    "id": "https://acme.com/hr/policystore/",
     "name": "hr_policy_store",
     "version": "2.0.0",
     "release_id": "2025-02-02-release-4c5d6e"
@@ -1407,6 +1602,7 @@ resourcePolicy:
   <t>How policy templates are instantiated and linked to policies in multi-file layouts.</t>
   <t>Expression and validation of cross-policy dependencies.</t>
   <t>Subdirectory organization conventions under <spanx style="verb">policies/</spanx> per policy language.</t>
+  <t>Support in the discovery form for multi-tenant IdPs whose discovered issuer differs from the discovery URL prefix (for example, Entra ID common); such issuers currently must use the static form.</t>
 </list></t>
 
 </section>
@@ -1433,418 +1629,464 @@ resourcePolicy:
   </back>
 
 <!-- ##markdown-source:
-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
+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
+r+aXsc2UpetPVd6xzW67p3Hv/wHWzMbawQ8BAA==
 
 -->
 
