@@ -38,7 +38,6 @@ contributor:
 normative:
  RFC8259:
  RFC7519:
- RFC2119:
  RFC7578:
  RFC8785:
  RFC7515:
@@ -183,11 +182,11 @@ The Policy Store API defines the `/access/v1/policy-store` endpoint for uploadin
 - Before uploading the policy store to the PDP, the policy administrator MUST ensure the validity of the policy store and correct version management.
 - PDP implementations MUST NOT implement policy store lifecycle management capability using this endpoint.
 
-## Relationship to NMOP Policy Sharing Model
+## Uploading a Policy Store {#api-upload}
 
-Separation of responsibilities between policy store governance and distribution may follow [NMOP policy sharing model draft](https://www.ietf.org/archive/id/draft-cabanillas-nmop-authz-policy-sharing-model-03.html#section-6.2) recommendations. 
+A client uploads a policy store to the PDP using a POST request to the `/access/v1/policy-store` endpoint.
 
-## API Request {#api-request}
+### Request {#api-upload-request}
 
 A POST request to the **`/access/v1/policy-store`** endpoint uploads a **`.cjar`** (Constraint JAR) file containing a policy store. The request body MUST be a `multipart/form-data` upload with the following part:
 
@@ -216,7 +215,7 @@ Content-Type: application/zip
 Refer to {{transport}} for more details.
 
 
-## API Response {#api-response}
+### Response {#api-upload-response}
 
 The server validates the uploaded file and metadata, and computes the `package_digest` ({{package-integrity}}). The response depends on whether the tuple (`policy_store.id`, `policy_store.version`, `policy_store.release_id`) has already been recorded ({{loading-activation-rollback}}):
 
@@ -266,7 +265,11 @@ Content-Type: application/json
 
 Refer to {{transport}} for more details.
 
-## Reading Policy Store Releases {#api-get}
+## Reading Policy Store Releases {#api-read}
+
+A client reads information about the policy store releases accepted by the PDP using a GET request to the `/access/v1/policy-store` endpoint.
+
+### Request {#api-read-request}
 
 A GET request to the **`/access/v1/policy-store`** endpoint returns the releases that the PDP has accepted for a policy store. Policy store identifiers are URIs, so they MUST be passed as query parameters and not as path segments. The request uses the following query parameters:
 
@@ -286,6 +289,8 @@ GET /access/v1/policy-store?id=https%3A%2F%2Facme.com%2Fapps%2Fanalytics%2Fpolic
 Host: pdp.example.com
 Authorization: Bearer mF_9.B5f-4.1JqM
 ~~~
+
+### Response {#api-read-response}
 
 On success, the PDP returns **200 OK** with a JSON object containing a `releases` array. Each element describes one accepted release with the following members:
 
@@ -730,7 +735,11 @@ The following are test requirements, not a claim that a conformance suite or int
 
 Before finalizing this profile, the working group needs to agree on the reserved filenames and profile identifier, the signature envelope and mandatory algorithm, and the relationship between critical artifact descriptors and future layout extensions. Byte-level positive and negative fixtures and results from independent implementations are still needed. The profile does not claim that the current draft's fixed entity representation is neutral across all policy languages.
 
-# Relationship to AuthZEN
+# Relationship to Other Authorization Standards
+
+This section describes how this specification relates to other authorization standards.
+
+## AuthZEN
 
 The AuthZEN Authorization API ({{AUTHZEN-API}}) standardizes communication between PEPs and PDPs. This specification standardizes how policy artifacts are packaged and distributed
 so that:
@@ -739,11 +748,15 @@ so that:
 * CI/CD pipelines MAY version, review, and promote policy stores as atomic units.
 * Audit systems MAY bind decision logs to a specific `policy_store.id`.
 
-## Decision records
+### Decision records
 
 A PDP that produces a decision record for an authorization decision MUST include both the `policy_store.version` and the `package_digest` of the active loaded snapshot used to reach that decision. The version records the human-readable release label, and the `package_digest` lets agent evidence verify the exact policy content that was used. The PDP MUST also record whether the active snapshot was accepted with a verified Provenance Profile ({{provenance-profile}}).
 
 Consistent with {{loading-activation-rollback}}, "the active loaded snapshot used" is the snapshot active at decision time. When a newer release has been uploaded or accepted but not activated, the decision record MUST report the version and digest of the currently active snapshot.
+
+## NMOP Policy Sharing Model
+
+Separation of responsibilities between policy store governance and distribution may follow [NMOP policy sharing model draft](https://www.ietf.org/archive/id/draft-cabanillas-nmop-authz-policy-sharing-model-03.html#section-6.2) recommendations.
 
 # Update to Policy Decision Point Metadata {#update-pdp-metadata}
 
@@ -783,15 +796,15 @@ This specification defines an HTTPS binding using JSON serialization which MUST 
 
 All API requests to the policy store endpoint MUST be made via HTTPS, using the POST method to upload a policy store or the GET method to read policy store releases.
 
-POST requests MUST include a `Content-Type` header with the value `multipart/form-data` ({{RFC7578}}). The request body MUST conform to the request structure defined in ({{api-request}}). GET requests carry their parameters in the query string as defined in ({{api-get}}) and have no request body.
+POST requests MUST include a `Content-Type` header with the value `multipart/form-data` ({{RFC7578}}). The request body MUST conform to the request structure defined in ({{api-upload-request}}). GET requests carry their parameters in the query string as defined in ({{api-read-request}}) and have no request body.
 
 | API Endpoint | Method | Default Path | Metadata Parameter | Request Schema | Response Schema |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Policy Store | POST | /access/v1/policy-store | policy_store_endpoint | {{api-request}} | {{api-response}} |
-| Policy Store | GET | /access/v1/policy-store | policy_store_endpoint | {{api-get}} | {{api-get}} |
+| Policy Store | POST | /access/v1/policy-store | policy_store_endpoint | {{api-upload-request}} | {{api-upload-response}} |
+| Policy Store | GET | /access/v1/policy-store | policy_store_endpoint | {{api-read-request}} | {{api-read-response}} |
 
 
-A successful POST response has a status code of 201 Created, or 200 OK for an idempotent re-upload. A successful GET response has a status code of 200 OK. Successful responses have a `Content-Type` of `application/json`, and the response body MUST be a JSON object that conforms to the structure defined in ({{api-response}}) or ({{api-get}}).
+A successful POST response has a status code of 201 Created, or 200 OK for an idempotent re-upload. A successful GET response has a status code of 200 OK. Successful responses have a `Content-Type` of `application/json`, and the response body MUST be a JSON object that conforms to the structure defined in ({{api-upload-response}}) or ({{api-read-response}}).
 
 The request URL MUST be the value of the `policy_store_endpoint` parameter ({{update-pdp-metadata}}) if provided in the Policy Decision Point metadata. If the parameter is omitted, the URL SHOULD be formed by appending the default path (as defined in the table above) to the PDP’s base URL. PDP's base URL should be obtained from the value of `policy_decision_point` parameter of the Policy Decision Point metadata as defined by AuthZEN Authorization API ({{AUTHZEN-API}}), if available.
 
